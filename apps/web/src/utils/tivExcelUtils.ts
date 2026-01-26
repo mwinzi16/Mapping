@@ -94,11 +94,19 @@ export function downloadTIVTemplate(): void {
     [''],
     ['Required Fields:'],
     ['- Location ID: Unique identifier for each location'],
-    ['- Latitude: Decimal degrees (-90 to 90)'],
-    ['- Longitude: Decimal degrees (-180 to 180)'],
     ['- TIV: Total Insured Value (numeric, no currency symbols)'],
     [''],
+    ['Recommended for Location Mapping:'],
+    ['- Latitude: Decimal degrees (-90 to 90) - needed for point markers'],
+    ['- Longitude: Decimal degrees (-180 to 180) - needed for point markers'],
+    [''],
+    ['Recommended for Choropleth (State/Country View):'],
+    ['- State: State or province name - required for state-level aggregation'],
+    ['- Country: Country name - required for country-level aggregation'],
+    [''],
     ['Optional Fields:'],
+    ['- Latitude: Decimal degrees (-90 to 90) - optional if using state/country aggregation'],
+    ['- Longitude: Decimal degrees (-180 to 180) - optional if using state/country aggregation'],
     ['- Currency: Default is USD if not specified'],
     ['- Category: e.g., Commercial, Residential, Industrial'],
     ['- Subcategory: More specific classification'],
@@ -111,7 +119,7 @@ export function downloadTIVTemplate(): void {
     ['Notes:'],
     ['- Delete example rows before adding your data'],
     ['- TIV values should be positive numbers'],
-    ['- Coordinates must be valid lat/long values'],
+    ['- Coordinates are optional; state/country choropleth works without them'],
   ]
 
   const wsInstructions = XLSX.utils.aoa_to_sheet(instructions)
@@ -148,20 +156,24 @@ export async function parseTIVExcelFile(file: File): Promise<TIVRecord[]> {
         }
 
         const records: TIVRecord[] = jsonData.map((row: any, index: number) => {
-          // Try to find latitude/longitude columns with various names
-          const lat = parseFloat(
-            row['Latitude'] || row['latitude'] || row['Lat'] || row['lat'] || ''
-          )
-          const lon = parseFloat(
-            row['Longitude'] || row['longitude'] || row['Lon'] || row['lon'] || row['Long'] || ''
-          )
+          // Try to find latitude/longitude columns with various names (optional now)
+          const latRaw = row['Latitude'] || row['latitude'] || row['Lat'] || row['lat'] || ''
+          const lonRaw = row['Longitude'] || row['longitude'] || row['Lon'] || row['lon'] || row['Long'] || ''
+          const lat = latRaw !== '' ? parseFloat(latRaw) : undefined
+          const lon = lonRaw !== '' ? parseFloat(lonRaw) : undefined
           const tiv = parseFloat(
             row['TIV'] || row['tiv'] || row['Total Insured Value'] || row['Insured Value'] || '0'
           )
 
-          if (isNaN(lat) || isNaN(lon)) {
+          // Validate coordinates if provided (but don't require them)
+          if (lat !== undefined && (isNaN(lat) || lat < -90 || lat > 90)) {
             throw new Error(
-              `Row ${index + 2}: Invalid coordinates. Latitude: ${row['Latitude']}, Longitude: ${row['Longitude']}`
+              `Row ${index + 2}: Invalid latitude value: ${latRaw}`
+            )
+          }
+          if (lon !== undefined && (isNaN(lon) || lon < -180 || lon > 180)) {
+            throw new Error(
+              `Row ${index + 2}: Invalid longitude value: ${lonRaw}`
             )
           }
 

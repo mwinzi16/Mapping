@@ -110,10 +110,14 @@ function aggregateByGranularity(
         key = record.country || `loc_${record.id}`
         break
       case 'grid':
-        // 0.5 degree grid cells
-        const latBucket = Math.floor(record.latitude * 2) / 2
-        const lonBucket = Math.floor(record.longitude * 2) / 2
-        key = `${latBucket},${lonBucket}`
+        // 0.5 degree grid cells - requires coordinates
+        if (record.latitude != null && record.longitude != null) {
+          const latBucket = Math.floor(record.latitude * 2) / 2
+          const lonBucket = Math.floor(record.longitude * 2) / 2
+          key = `${latBucket},${lonBucket}`
+        } else {
+          key = `no_coords_${record.id}`
+        }
         break
       default:
         key = record.id
@@ -127,11 +131,30 @@ function aggregateByGranularity(
   
   return Object.entries(groups).map(([key, { records }]) => {
     const totalTIV = records.reduce((sum, r) => sum + r.tiv, 0)
-    const avgLat = records.reduce((sum, r) => sum + r.latitude, 0) / records.length
-    const avgLon = records.reduce((sum, r) => sum + r.longitude, 0) / records.length
     
-    const lats = records.map(r => r.latitude)
-    const lons = records.map(r => r.longitude)
+    // Only calculate coordinates from records that have them
+    const recordsWithCoords = records.filter(r => r.latitude != null && r.longitude != null)
+    const hasCoordinates = recordsWithCoords.length > 0
+    
+    let avgLat: number | undefined
+    let avgLon: number | undefined
+    let bounds: { north: number; south: number; east: number; west: number } | undefined
+    
+    if (hasCoordinates) {
+      avgLat = recordsWithCoords.reduce((sum, r) => sum + r.latitude!, 0) / recordsWithCoords.length
+      avgLon = recordsWithCoords.reduce((sum, r) => sum + r.longitude!, 0) / recordsWithCoords.length
+      
+      if (recordsWithCoords.length > 1) {
+        const lats = recordsWithCoords.map(r => r.latitude!)
+        const lons = recordsWithCoords.map(r => r.longitude!)
+        bounds = {
+          north: Math.max(...lats),
+          south: Math.min(...lats),
+          east: Math.max(...lons),
+          west: Math.min(...lons),
+        }
+      }
+    }
     
     return {
       id: key,
@@ -140,12 +163,8 @@ function aggregateByGranularity(
       longitude: avgLon,
       totalTIV,
       recordCount: records.length,
-      bounds: records.length > 1 ? {
-        north: Math.max(...lats),
-        south: Math.min(...lats),
-        east: Math.max(...lons),
-        west: Math.min(...lons),
-      } : undefined,
+      hasCoordinates,
+      bounds,
     }
   })
 }

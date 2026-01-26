@@ -397,9 +397,21 @@ export default function IndemnityHistorical() {
 
     if (dataToRender.length === 0) return
 
-    const maxTIV = Math.max(...dataToRender.map((d: any) => d.totalTIV || d.tiv))
+    // Filter to only items with coordinates for marker rendering
+    const dataWithCoords = dataToRender.filter((d: any) => {
+      // For location granularity, check record coordinates
+      if (granularity === 'location') {
+        return d.latitude != null && d.longitude != null
+      }
+      // For aggregated data, check hasCoordinates flag or explicit lat/lon
+      return d.hasCoordinates || (d.latitude != null && d.longitude != null)
+    })
 
-    dataToRender.forEach((point: any) => {
+    if (dataWithCoords.length === 0) return
+
+    const maxTIV = Math.max(...dataWithCoords.map((d: any) => d.totalTIV || d.tiv))
+
+    dataWithCoords.forEach((point: any) => {
       const tiv = point.totalTIV || point.tiv
       const size = getMarkerSize(tiv, maxTIV)
       const color = getTIVColor(tiv, maxTIV)

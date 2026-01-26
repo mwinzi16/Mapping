@@ -2,8 +2,8 @@
 
 export interface TIVRecord {
   id: string
-  latitude: number
-  longitude: number
+  latitude?: number  // Optional - choropleth works without coordinates
+  longitude?: number  // Optional - choropleth works without coordinates
   tiv: number  // Total Insured Value
   currency: string
   category?: string  // e.g., "residential", "commercial", "industrial"
@@ -35,10 +35,11 @@ export type TIVGranularity = 'location' | 'postal' | 'city' | 'county' | 'state'
 export interface AggregatedTIV {
   id: string
   name: string  // Could be postal code, city name, etc.
-  latitude: number
-  longitude: number
+  latitude?: number  // Optional - may not have coordinates for state/country aggregation
+  longitude?: number  // Optional - may not have coordinates for state/country aggregation
   totalTIV: number
   recordCount: number
+  hasCoordinates: boolean  // Indicates if valid lat/lon are available for marker rendering
   bounds?: {
     north: number
     south: number
