@@ -100,6 +100,9 @@ function aggregateByGranularity(
       case 'city':
         key = record.city || `loc_${record.id}`
         break
+      case 'county':
+        key = record.county || `loc_${record.id}`
+        break
       case 'state':
         key = record.state || `loc_${record.id}`
         break

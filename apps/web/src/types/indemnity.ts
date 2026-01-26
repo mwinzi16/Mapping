@@ -10,6 +10,7 @@ export interface TIVRecord {
   subcategory?: string
   address?: string
   city?: string
+  county?: string  // County/parish/district
   state?: string
   country?: string
   postalCode?: string
@@ -29,7 +30,7 @@ export interface TIVDataset {
   uploadedAt: Date
 }
 
-export type TIVGranularity = 'location' | 'postal' | 'city' | 'state' | 'country' | 'grid'
+export type TIVGranularity = 'location' | 'postal' | 'city' | 'county' | 'state' | 'country' | 'grid'
 
 export interface AggregatedTIV {
   id: string

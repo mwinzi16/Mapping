@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useIndemnityStore } from '../stores/indemnityStore'
 import { formatTIVShort } from '../utils/tivExcelUtils'
+import { shouldUseChoropleth, renderChoropleth, removeChoropleth } from '../utils/choroplethUtils'
 import TIVDataPanel from '../components/indemnity/TIVDataPanel'
 import IndemnityFilterSection from '../components/indemnity/IndemnityFilterSection'
 import IndemnityStatisticsSection from '../components/indemnity/IndemnityStatisticsSection'
@@ -12,6 +13,7 @@ import MapStyleSelector, {
   generateNightLightsStyle,
   generate3DTerrainStyle,
 } from '../components/parametric/MapStyleSelector'
+import GranularitySelector from '../components/indemnity/GranularitySelector'
 import { 
   BarChart3, 
   AlertTriangle, 
@@ -237,6 +239,7 @@ export default function IndemnityHistorical() {
     activeDatasetId,
     aggregatedData,
     granularity,
+    setGranularity,
   } = useIndemnityStore()
 
   const activeDataset = datasets.find((d) => d.id === activeDatasetId)
@@ -311,9 +314,10 @@ export default function IndemnityHistorical() {
     setMapStyle(style.id)
     setIsMapReady(false)
 
-    // Clear markers before style change
+    // Clear all visualizations before style change
     clearTIVMarkers()
     clearEventMarkers()
+    removeChoropleth(mapRef.current)
 
     // Remove existing hurricane track layers
     const layerIds = ['hurricane-tracks', 'hurricane-track-points']
@@ -360,14 +364,32 @@ export default function IndemnityHistorical() {
     return Math.max(8, Math.min(24, 8 + ratio * 16))
   }
 
-  // Render TIV markers
-  const renderTIVMarkers = useCallback(() => {
+  // Render TIV visualization (markers for granular, choropleth for aggregated)
+  const renderTIVVisualization = useCallback(async () => {
     if (!mapRef.current || !isMapReady || !showTIV) {
       clearTIVMarkers()
+      if (mapRef.current) removeChoropleth(mapRef.current)
       return
     }
 
     clearTIVMarkers()
+    
+    const currency = activeDataset?.records[0]?.currency || 'USD'
+
+    // Use choropleth for state/country granularity
+    if (shouldUseChoropleth(granularity)) {
+      await renderChoropleth(
+        mapRef.current,
+        aggregatedData,
+        granularity,
+        formatTIVShort,
+        currency
+      )
+      return
+    }
+
+    // Remove any existing choropleth when switching to markers
+    removeChoropleth(mapRef.current)
 
     const dataToRender = granularity === 'location' && activeDataset
       ? activeDataset.records
@@ -376,7 +398,6 @@ export default function IndemnityHistorical() {
     if (dataToRender.length === 0) return
 
     const maxTIV = Math.max(...dataToRender.map((d: any) => d.totalTIV || d.tiv))
-    const currency = activeDataset?.records[0]?.currency || 'USD'
 
     dataToRender.forEach((point: any) => {
       const tiv = point.totalTIV || point.tiv
@@ -653,10 +674,10 @@ export default function IndemnityHistorical() {
     setSelectedEvents([])
   }
 
-  // Update markers when data changes
+  // Update visualization when data changes
   useEffect(() => {
-    renderTIVMarkers()
-  }, [renderTIVMarkers])
+    renderTIVVisualization()
+  }, [renderTIVVisualization])
 
   useEffect(() => {
     renderEventMarkers()
@@ -814,21 +835,45 @@ export default function IndemnityHistorical() {
       <div className="flex-1 relative">
         <div ref={mapContainer} className="w-full h-full" />
 
-        {/* Map Style Selector */}
-        <MapStyleSelector
-          currentStyleId={mapStyle}
-          onStyleChange={handleStyleChange}
-          className="absolute top-4 left-4 z-10"
-        />
+        {/* Map Controls */}
+        <div className="absolute top-4 left-4 z-10 flex flex-col space-y-2">
+          {/* Map Style Selector */}
+          <MapStyleSelector
+            currentStyleId={mapStyle}
+            onStyleChange={handleStyleChange}
+          />
+
+          {/* Granularity Selector */}
+          <GranularitySelector
+            currentGranularity={granularity}
+            onGranularityChange={setGranularity}
+          />
+        </div>
 
         {/* Legend */}
         <div className="absolute bottom-4 left-4 bg-gray-900/90 backdrop-blur-sm p-3 rounded-lg border border-gray-700 z-10">
           <div className="text-xs text-gray-400 font-medium mb-2">Legend</div>
           <div className="space-y-1.5">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-purple-500 border border-purple-300" />
-              <span className="text-xs text-gray-300">TIV Location</span>
-            </div>
+            {/* TIV Legend - changes based on granularity */}
+            {shouldUseChoropleth(granularity) ? (
+              <div className="space-y-1">
+                <div className="text-xs text-gray-300 mb-1">TIV Concentration</div>
+                <div className="flex items-center space-x-1">
+                  <div className="h-3 w-24 rounded" style={{
+                    background: 'linear-gradient(to right, #f3e8ff, #e9d5ff, #d8b4fe, #c084fc, #a855f7, #9333ea, #7e22ce)'
+                  }} />
+                </div>
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Low</span>
+                  <span>High</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 rounded-full bg-purple-500 border border-purple-300" />
+                <span className="text-xs text-gray-300">TIV Location</span>
+              </div>
+            )}
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 rounded-full bg-red-500 border-2 border-white" />
               <span className="text-xs text-gray-300">Historical Earthquake</span>
