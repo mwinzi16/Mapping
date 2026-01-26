@@ -1,0 +1,458 @@
+import { useEffect, useRef, useCallback, useState } from 'react'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import { useIndemnityStore } from '../stores/indemnityStore'
+import { useEventStore } from '../stores/eventStore'
+import { formatTIVShort } from '../utils/tivExcelUtils'
+import TIVDataPanel from '../components/indemnity/TIVDataPanel'
+import IndemnityFilterSection from '../components/indemnity/IndemnityFilterSection'
+import IndemnityStatisticsSection from '../components/indemnity/IndemnityStatisticsSection'
+import MapStyleSelector, {
+  type MapStyleOption,
+  generateRasterStyle,
+  generateNightLightsStyle,
+  generate3DTerrainStyle,
+} from '../components/parametric/MapStyleSelector'
+import { Activity, AlertTriangle, Loader2 } from 'lucide-react'
+
+export default function IndemnityLiveCat() {
+  const mapContainer = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<maplibregl.Map | null>(null)
+  const tivMarkersRef = useRef<maplibregl.Marker[]>([])
+  const eventMarkersRef = useRef<maplibregl.Marker[]>([])
+  const [isMapReady, setIsMapReady] = useState(false)
+  const [showTIV, setShowTIV] = useState(true)
+  const [showEvents, setShowEvents] = useState(true)
+  const [mapStyle, setMapStyle] = useState('dark')
+
+  const {
+    datasets,
+    activeDatasetId,
+    aggregatedData,
+    granularity,
+  } = useIndemnityStore()
+
+  const {
+    earthquakes,
+    hurricanes,
+    wildfires,
+    severeWeather,
+    isLoading: eventsLoading,
+    fetchAllEvents,
+  } = useEventStore()
+
+  const activeDataset = datasets.find((d) => d.id === activeDatasetId)
+
+  // Initialize map
+  useEffect(() => {
+    if (!mapContainer.current || mapRef.current) return
+
+    const map = new maplibregl.Map({
+      container: mapContainer.current,
+      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      center: [-95, 38],
+      zoom: 4,
+    })
+
+    map.addControl(new maplibregl.NavigationControl(), 'top-right')
+
+    map.on('load', () => {
+      setIsMapReady(true)
+    })
+
+    mapRef.current = map
+
+    return () => {
+      map.remove()
+      mapRef.current = null
+    }
+  }, [])
+
+  // Fetch live events on mount
+  useEffect(() => {
+    fetchAllEvents()
+  }, [fetchAllEvents])
+
+  // Clear TIV markers
+  const clearTIVMarkers = useCallback(() => {
+    tivMarkersRef.current.forEach((marker) => marker.remove())
+    tivMarkersRef.current = []
+  }, [])
+
+  // Clear event markers
+  const clearEventMarkers = useCallback(() => {
+    eventMarkersRef.current.forEach((marker) => marker.remove())
+    eventMarkersRef.current = []
+  }, [])
+
+  // Handle map style changes
+  const handleStyleChange = useCallback((style: MapStyleOption) => {
+    if (!mapRef.current) return
+
+    setMapStyle(style.id)
+    setIsMapReady(false)
+
+    // Clear markers before style change
+    clearTIVMarkers()
+    clearEventMarkers()
+
+    mapRef.current.once('style.load', () => {
+      setIsMapReady(true)
+    })
+
+    // Determine the style value
+    let styleValue: maplibregl.StyleSpecification | string = style.url
+
+    if (style.id === 'satellite' || style.id === 'osm') {
+      styleValue = generateRasterStyle(style.url, style.id === 'satellite')
+    } else if (style.id === 'night-lights') {
+      styleValue = generateNightLightsStyle()
+    } else if (style.id === 'terrain') {
+      styleValue = generate3DTerrainStyle()
+    }
+
+    mapRef.current.setStyle(styleValue)
+  }, [clearTIVMarkers, clearEventMarkers])
+
+  // Get color based on TIV value
+  const getTIVColor = (tiv: number, maxTIV: number): string => {
+    const ratio = tiv / maxTIV
+    if (ratio > 0.8) return '#a855f7' // purple-500
+    if (ratio > 0.6) return '#c084fc' // purple-400
+    if (ratio > 0.4) return '#d8b4fe' // purple-300
+    if (ratio > 0.2) return '#e9d5ff' // purple-200
+    return '#f3e8ff' // purple-100
+  }
+
+  // Get marker size based on TIV
+  const getMarkerSize = (tiv: number, maxTIV: number): number => {
+    const ratio = tiv / maxTIV
+    return Math.max(8, Math.min(24, 8 + ratio * 16))
+  }
+
+  // Render TIV markers
+  const renderTIVMarkers = useCallback(() => {
+    if (!mapRef.current || !isMapReady || !showTIV) {
+      clearTIVMarkers()
+      return
+    }
+
+    clearTIVMarkers()
+
+    const dataToRender = granularity === 'location' && activeDataset
+      ? activeDataset.records
+      : aggregatedData
+
+    if (dataToRender.length === 0) return
+
+    const maxTIV = Math.max(...dataToRender.map((d: any) => d.totalTIV || d.tiv))
+    const currency = activeDataset?.records[0]?.currency || 'USD'
+
+    dataToRender.forEach((point: any) => {
+      const tiv = point.totalTIV || point.tiv
+      const size = getMarkerSize(tiv, maxTIV)
+      const color = getTIVColor(tiv, maxTIV)
+
+      const el = document.createElement('div')
+      el.className = 'tiv-marker'
+      el.style.width = `${size}px`
+      el.style.height = `${size}px`
+      el.style.backgroundColor = color
+      el.style.borderRadius = '50%'
+      el.style.border = '2px solid rgba(168, 85, 247, 0.8)'
+      el.style.cursor = 'pointer'
+      el.style.opacity = '0.8'
+
+      const name = point.name || point.address || point.id
+      const count = point.recordCount || 1
+
+      const popup = new maplibregl.Popup({ offset: 15 }).setHTML(`
+        <div style="padding: 8px; max-width: 200px;">
+          <div style="font-weight: bold; margin-bottom: 4px; color: #333;">${name}</div>
+          <div style="font-size: 12px; color: #666;">
+            <div><strong>TIV:</strong> ${formatTIVShort(tiv, currency)}</div>
+            ${count > 1 ? `<div><strong>Locations:</strong> ${count}</div>` : ''}
+          </div>
+        </div>
+      `)
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([point.longitude, point.latitude])
+        .setPopup(popup)
+        .addTo(mapRef.current!)
+
+      tivMarkersRef.current.push(marker)
+    })
+  }, [aggregatedData, activeDataset, granularity, isMapReady, showTIV, clearTIVMarkers])
+
+  // Render live event markers
+  const renderEventMarkers = useCallback(() => {
+    if (!mapRef.current || !isMapReady || !showEvents) {
+      clearEventMarkers()
+      return
+    }
+
+    clearEventMarkers()
+
+    // Earthquakes
+    earthquakes.forEach((eq) => {
+      const el = document.createElement('div')
+      const size = Math.max(12, Math.min(30, eq.magnitude * 4))
+      el.style.width = `${size}px`
+      el.style.height = `${size}px`
+      el.style.backgroundColor = '#ef4444'
+      el.style.borderRadius = '50%'
+      el.style.border = '2px solid #fff'
+      el.style.cursor = 'pointer'
+      el.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.6)'
+
+      const popup = new maplibregl.Popup({ offset: 15 }).setHTML(`
+        <div style="padding: 8px;">
+          <div style="font-weight: bold; color: #ef4444;">🌍 Earthquake</div>
+          <div style="font-size: 12px; color: #666;">
+            <div><strong>Magnitude:</strong> ${eq.magnitude}</div>
+            <div><strong>Location:</strong> ${eq.place}</div>
+            <div><strong>Depth:</strong> ${eq.depth_km} km</div>
+          </div>
+        </div>
+      `)
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([eq.longitude, eq.latitude])
+        .setPopup(popup)
+        .addTo(mapRef.current!)
+
+      eventMarkersRef.current.push(marker)
+    })
+
+    // Hurricanes
+    hurricanes.forEach((h) => {
+      const el = document.createElement('div')
+      el.style.width = '24px'
+      el.style.height = '24px'
+      el.style.backgroundColor = '#3b82f6'
+      el.style.borderRadius = '50%'
+      el.style.border = '3px solid #fff'
+      el.style.cursor = 'pointer'
+      el.style.boxShadow = '0 0 10px rgba(59, 130, 246, 0.6)'
+
+      const popup = new maplibregl.Popup({ offset: 15 }).setHTML(`
+        <div style="padding: 8px;">
+          <div style="font-weight: bold; color: #3b82f6;">🌀 ${h.name}</div>
+          <div style="font-size: 12px; color: #666;">
+            <div><strong>Category:</strong> ${h.category || 'N/A'}</div>
+            <div><strong>Wind Speed:</strong> ${h.max_wind_mph} mph</div>
+            <div><strong>Pressure:</strong> ${h.min_pressure_mb || 'N/A'} mb</div>
+          </div>
+        </div>
+      `)
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([h.longitude, h.latitude])
+        .setPopup(popup)
+        .addTo(mapRef.current!)
+
+      eventMarkersRef.current.push(marker)
+    })
+
+    // Wildfires
+    wildfires.slice(0, 100).forEach((fire) => {
+      const el = document.createElement('div')
+      el.style.width = '10px'
+      el.style.height = '10px'
+      el.style.backgroundColor = '#f97316'
+      el.style.borderRadius = '50%'
+      el.style.cursor = 'pointer'
+      el.style.boxShadow = '0 0 6px rgba(249, 115, 22, 0.6)'
+
+      const popup = new maplibregl.Popup({ offset: 10 }).setHTML(`
+        <div style="padding: 8px;">
+          <div style="font-weight: bold; color: #f97316;">🔥 Wildfire</div>
+          <div style="font-size: 12px; color: #666;">
+            <div><strong>Confidence:</strong> ${fire.confidence || 'N/A'}%</div>
+            <div><strong>FRP:</strong> ${fire.frp || 'N/A'} MW</div>
+          </div>
+        </div>
+      `)
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([fire.longitude, fire.latitude])
+        .setPopup(popup)
+        .addTo(mapRef.current!)
+
+      eventMarkersRef.current.push(marker)
+    })
+
+    // Severe Weather
+    severeWeather.forEach((sw) => {
+      const el = document.createElement('div')
+      el.style.width = '16px'
+      el.style.height = '16px'
+      el.style.backgroundColor = '#eab308'
+      el.style.borderRadius = '4px'
+      el.style.border = '2px solid #fff'
+      el.style.cursor = 'pointer'
+
+      const popup = new maplibregl.Popup({ offset: 10 }).setHTML(`
+        <div style="padding: 8px;">
+          <div style="font-weight: bold; color: #eab308;">⚠️ ${sw.event_type}</div>
+          <div style="font-size: 12px; color: #666;">
+            <div><strong>Severity:</strong> ${sw.severity || 'N/A'}</div>
+          </div>
+        </div>
+      `)
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([sw.longitude, sw.latitude])
+        .setPopup(popup)
+        .addTo(mapRef.current!)
+
+      eventMarkersRef.current.push(marker)
+    })
+  }, [earthquakes, hurricanes, wildfires, severeWeather, isMapReady, showEvents, clearEventMarkers])
+
+  // Update markers when data changes
+  useEffect(() => {
+    renderTIVMarkers()
+  }, [renderTIVMarkers])
+
+  useEffect(() => {
+    renderEventMarkers()
+  }, [renderEventMarkers])
+
+  const totalEvents = earthquakes.length + hurricanes.length + wildfires.length + severeWeather.length
+
+  return (
+    <div className="flex-1 flex overflow-hidden">
+      {/* Sidebar */}
+      <div className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/80">
+          <div className="flex items-center space-x-2">
+            <Activity className="w-5 h-5 text-green-400" />
+            <h2 className="text-lg font-semibold text-white">Indemnity - Live Cat</h2>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            Overlay TIV exposure with live catastrophe events
+          </p>
+        </div>
+
+        {/* Live Events Status */}
+        <div className="px-4 py-3 border-b border-gray-700 bg-green-900/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              {eventsLoading ? (
+                <Loader2 className="w-4 h-4 text-green-400 animate-spin" />
+              ) : (
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              )}
+              <span className="text-sm text-green-400">Live Events</span>
+            </div>
+            <span className="text-sm text-white font-medium">{totalEvents}</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2 mt-2 text-xs">
+            <div className="text-center">
+              <div className="text-red-400 font-medium">{earthquakes.length}</div>
+              <div className="text-gray-500">EQ</div>
+            </div>
+            <div className="text-center">
+              <div className="text-blue-400 font-medium">{hurricanes.length}</div>
+              <div className="text-gray-500">TC</div>
+            </div>
+            <div className="text-center">
+              <div className="text-orange-400 font-medium">{wildfires.length}</div>
+              <div className="text-gray-500">Fire</div>
+            </div>
+            <div className="text-center">
+              <div className="text-yellow-400 font-medium">{severeWeather.length}</div>
+              <div className="text-gray-500">SW</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Layer Toggles */}
+        <div className="px-4 py-3 border-b border-gray-700">
+          <div className="text-xs text-gray-400 mb-2 font-medium">Map Layers</div>
+          <div className="space-y-2">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showTIV}
+                onChange={(e) => setShowTIV(e.target.checked)}
+                className="rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-purple-500"
+              />
+              <span className="text-sm text-gray-300">TIV Locations</span>
+              <span className="text-xs text-purple-400">({activeDataset?.records.length || 0})</span>
+            </label>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showEvents}
+                onChange={(e) => setShowEvents(e.target.checked)}
+                className="rounded border-gray-600 bg-gray-700 text-green-500 focus:ring-green-500"
+              />
+              <span className="text-sm text-gray-300">Live Events</span>
+              <span className="text-xs text-green-400">({totalEvents})</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto">
+          <TIVDataPanel />
+          <IndemnityFilterSection />
+          <IndemnityStatisticsSection />
+        </div>
+      </div>
+
+      {/* Map */}
+      <div className="flex-1 relative">
+        <div ref={mapContainer} className="w-full h-full" />
+
+        {/* Map Style Selector */}
+        <MapStyleSelector
+          currentStyleId={mapStyle}
+          onStyleChange={handleStyleChange}
+          className="absolute top-4 left-4 z-10"
+        />
+
+        {/* Legend */}
+        <div className="absolute bottom-4 left-4 bg-gray-900/90 backdrop-blur-sm p-3 rounded-lg border border-gray-700 z-10">
+          <div className="text-xs text-gray-400 font-medium mb-2">Legend</div>
+          <div className="space-y-1.5">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-purple-500 border border-purple-300" />
+              <span className="text-xs text-gray-300">TIV Location</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-red-500" />
+              <span className="text-xs text-gray-300">Earthquake</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500" />
+              <span className="text-xs text-gray-300">Hurricane</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-orange-500" />
+              <span className="text-xs text-gray-300">Wildfire</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded bg-yellow-500" />
+              <span className="text-xs text-gray-300">Severe Weather</span>
+            </div>
+          </div>
+        </div>
+
+        {/* No TIV Data Overlay */}
+        {!activeDataset && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-yellow-900/90 backdrop-blur-sm px-4 py-2 rounded-lg border border-yellow-700 z-10">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-yellow-400" />
+              <span className="text-sm text-yellow-300">Upload TIV data to see exposure overlay</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
