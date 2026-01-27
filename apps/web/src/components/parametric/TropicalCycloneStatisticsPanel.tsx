@@ -1,6 +1,7 @@
 import { useParametricStore } from '../../stores/parametricStore'
 import { Loader2, TrendingUp, AlertTriangle, Calendar, Wind, Target } from 'lucide-react'
 import { TriggerCriteria } from '../../types/parametric'
+import { CHART_COLORS, CHART_STYLES } from '../../utils/chartConstants'
 
 interface TropicalCycloneStatisticsPanelProps {
   embedded?: boolean
@@ -77,7 +78,7 @@ export default function TropicalCycloneStatisticsPanel({ embedded = false }: Tro
           </div>
 
           {/* Trigger Probability - Main Stat */}
-          <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 p-4 rounded-lg">
+          <div className={CHART_STYLES.gradientCardTC}>
             <div className="flex items-center space-x-2 mb-1">
               <TrendingUp className="w-4 h-4 text-blue-400" />
               <span className="text-xs text-gray-400 uppercase">Annual Trigger Probability</span>

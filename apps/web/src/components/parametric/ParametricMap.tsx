@@ -200,23 +200,61 @@ export default function ParametricMap() {
     reader.readAsText(file)
   }, [boxes.length, addBoxes])
   
-  // Generate GeoJSON for hurricane tracks
+  // Generate GeoJSON for hurricane tracks with intensity-based segments
   const hurricaneTracksGeoJSON = useCallback(() => {
+    const features: GeoJSON.Feature[] = []
+    
+    hurricanes.forEach((hurricane) => {
+      // Create individual segments between track points, colored by category
+      for (let i = 0; i < hurricane.track.length - 1; i++) {
+        const point = hurricane.track[i]
+        const nextPoint = hurricane.track[i + 1]
+        
+        features.push({
+          type: 'Feature' as const,
+          properties: {
+            storm_id: hurricane.storm_id,
+            name: hurricane.name,
+            year: hurricane.year,
+            category: point.category,
+            wind_knots: point.wind_knots,
+          },
+          geometry: {
+            type: 'LineString' as const,
+            coordinates: [
+              [point.longitude, point.latitude],
+              [nextPoint.longitude, nextPoint.latitude],
+            ],
+          },
+        })
+      }
+      
+      // Add point markers at each track position
+      hurricane.track.forEach((point) => {
+        features.push({
+          type: 'Feature' as const,
+          properties: {
+            storm_id: hurricane.storm_id,
+            name: hurricane.name,
+            year: hurricane.year,
+            category: point.category,
+            wind_knots: point.wind_knots,
+            pressure_mb: point.pressure_mb,
+            timestamp: point.timestamp,
+            status: point.status,
+            isPoint: true,
+          },
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [point.longitude, point.latitude],
+          },
+        })
+      })
+    })
+    
     return {
       type: 'FeatureCollection' as const,
-      features: hurricanes.map((hurricane) => ({
-        type: 'Feature' as const,
-        properties: {
-          storm_id: hurricane.storm_id,
-          name: hurricane.name,
-          year: hurricane.year,
-          max_category: hurricane.max_category,
-        },
-        geometry: {
-          type: 'LineString' as const,
-          coordinates: hurricane.track.map((point) => [point.longitude, point.latitude]),
-        },
-      })),
+      features,
     }
   }, [hurricanes])
   
@@ -415,25 +453,50 @@ export default function ParametricMap() {
         </Popup>
       )}
       
-      {/* Hurricane tracks layer */}
+      {/* Hurricane tracks layer - intensity colored segments */}
       <Source id="hurricane-tracks" type="geojson" data={hurricaneTracksGeoJSON()}>
+        {/* Track line segments colored by category */}
         <Layer
           id="hurricane-tracks-line"
           type="line"
+          filter={['==', '$type', 'LineString']}
           paint={{
             'line-color': [
               'match',
-              ['get', 'max_category'],
+              ['get', 'category'],
               0, CATEGORY_COLORS[0],
               1, CATEGORY_COLORS[1],
               2, CATEGORY_COLORS[2],
               3, CATEGORY_COLORS[3],
               4, CATEGORY_COLORS[4],
               5, CATEGORY_COLORS[5],
-              '#ffffff'
+              '#74b9ff'
             ],
-            'line-width': 1.5,
-            'line-opacity': 0.6,
+            'line-width': 2.5,
+            'line-opacity': 0.85,
+          }}
+        />
+        {/* Track point markers */}
+        <Layer
+          id="hurricane-tracks-points"
+          type="circle"
+          filter={['==', '$type', 'Point']}
+          paint={{
+            'circle-radius': 4,
+            'circle-color': [
+              'match',
+              ['get', 'category'],
+              0, CATEGORY_COLORS[0],
+              1, CATEGORY_COLORS[1],
+              2, CATEGORY_COLORS[2],
+              3, CATEGORY_COLORS[3],
+              4, CATEGORY_COLORS[4],
+              5, CATEGORY_COLORS[5],
+              '#74b9ff'
+            ],
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#ffffff',
+            'circle-opacity': 0.9,
           }}
         />
       </Source>

@@ -4,6 +4,13 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { useIndemnityStore } from '../stores/indemnityStore'
 import { formatTIVShort } from '../utils/tivExcelUtils'
 import { shouldUseChoropleth, renderChoropleth, removeChoropleth } from '../utils/choroplethUtils'
+import { 
+  fetchHistoricalEarthquakes, 
+  fetchHistoricalHurricanes,
+  type HistoricalEarthquake,
+  type HistoricalHurricane,
+  type LoadMode,
+} from '../services/indemnityApi'
 import TIVDataPanel from '../components/indemnity/TIVDataPanel'
 import IndemnityFilterSection from '../components/indemnity/IndemnityFilterSection'
 import IndemnityStatisticsSection from '../components/indemnity/IndemnityStatisticsSection'
@@ -21,182 +28,15 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
+  Loader2,
+  Database,
+  Star,
+  RefreshCw,
 } from 'lucide-react'
 
-// Historical earthquake data
-const HISTORICAL_EARTHQUAKES = [
-  { id: 'eq1', name: 'Northridge 1994', magnitude: 6.7, lat: 34.213, lon: -118.537, date: '1994-01-17', deaths: 57, damage: 20000000000 },
-  { id: 'eq2', name: 'Loma Prieta 1989', magnitude: 6.9, lat: 37.04, lon: -121.88, date: '1989-10-17', deaths: 63, damage: 6000000000 },
-  { id: 'eq3', name: 'San Fernando 1971', magnitude: 6.6, lat: 34.416, lon: -118.4, date: '1971-02-09', deaths: 65, damage: 500000000 },
-  { id: 'eq4', name: 'Ridgecrest 2019', magnitude: 7.1, lat: 35.77, lon: -117.6, date: '2019-07-06', deaths: 0, damage: 1000000000 },
-  { id: 'eq5', name: 'Napa 2014', magnitude: 6.0, lat: 38.22, lon: -122.31, date: '2014-08-24', deaths: 1, damage: 500000000 },
-]
-
-// Historical hurricanes with FULL TRACK DATA
-interface HurricaneTrackPoint {
-  lat: number
-  lon: number
-  time: string
-  wind_mph: number
-  pressure_mb: number
-  category: number | null
-  status: string // 'TD' | 'TS' | 'H1' | 'H2' | 'H3' | 'H4' | 'H5'
-}
-
-interface HistoricalHurricane {
-  id: string
-  name: string
-  season: number
-  maxCategory: number
-  maxWindMph: number
-  minPressureMb: number
-  damage: number
-  deaths: number
-  track: HurricaneTrackPoint[]
-}
-
-const HISTORICAL_HURRICANES: HistoricalHurricane[] = [
-  {
-    id: 'h1',
-    name: 'Hurricane Andrew',
-    season: 1992,
-    maxCategory: 5,
-    maxWindMph: 175,
-    minPressureMb: 922,
-    damage: 27000000000,
-    deaths: 65,
-    track: [
-      { lat: 12.3, lon: -42.0, time: '1992-08-17T00:00Z', wind_mph: 40, pressure_mb: 1010, category: null, status: 'TS' },
-      { lat: 13.8, lon: -48.5, time: '1992-08-18T00:00Z', wind_mph: 50, pressure_mb: 1005, category: null, status: 'TS' },
-      { lat: 15.5, lon: -54.0, time: '1992-08-19T00:00Z', wind_mph: 65, pressure_mb: 998, category: null, status: 'TS' },
-      { lat: 17.2, lon: -59.5, time: '1992-08-20T00:00Z', wind_mph: 80, pressure_mb: 990, category: 1, status: 'H1' },
-      { lat: 18.8, lon: -64.0, time: '1992-08-21T00:00Z', wind_mph: 110, pressure_mb: 970, category: 2, status: 'H2' },
-      { lat: 20.5, lon: -68.5, time: '1992-08-22T00:00Z', wind_mph: 130, pressure_mb: 950, category: 4, status: 'H4' },
-      { lat: 23.5, lon: -74.0, time: '1992-08-23T00:00Z', wind_mph: 165, pressure_mb: 928, category: 5, status: 'H5' },
-      { lat: 25.5, lon: -80.2, time: '1992-08-24T06:00Z', wind_mph: 175, pressure_mb: 922, category: 5, status: 'H5' },
-      { lat: 26.1, lon: -83.0, time: '1992-08-25T00:00Z', wind_mph: 140, pressure_mb: 945, category: 4, status: 'H4' },
-      { lat: 27.5, lon: -88.0, time: '1992-08-26T00:00Z', wind_mph: 145, pressure_mb: 940, category: 4, status: 'H4' },
-      { lat: 29.6, lon: -91.5, time: '1992-08-26T12:00Z', wind_mph: 115, pressure_mb: 960, category: 3, status: 'H3' },
-    ],
-  },
-  {
-    id: 'h2',
-    name: 'Hurricane Katrina',
-    season: 2005,
-    maxCategory: 5,
-    maxWindMph: 175,
-    minPressureMb: 902,
-    damage: 125000000000,
-    deaths: 1836,
-    track: [
-      { lat: 23.2, lon: -75.5, time: '2005-08-24T00:00Z', wind_mph: 40, pressure_mb: 1008, category: null, status: 'TD' },
-      { lat: 24.5, lon: -76.5, time: '2005-08-24T18:00Z', wind_mph: 50, pressure_mb: 1003, category: null, status: 'TS' },
-      { lat: 25.4, lon: -78.4, time: '2005-08-25T12:00Z', wind_mph: 75, pressure_mb: 988, category: 1, status: 'H1' },
-      { lat: 26.0, lon: -80.3, time: '2005-08-25T22:00Z', wind_mph: 80, pressure_mb: 984, category: 1, status: 'H1' },
-      { lat: 25.9, lon: -83.3, time: '2005-08-26T18:00Z', wind_mph: 100, pressure_mb: 970, category: 2, status: 'H2' },
-      { lat: 24.9, lon: -85.3, time: '2005-08-27T12:00Z', wind_mph: 115, pressure_mb: 955, category: 3, status: 'H3' },
-      { lat: 25.7, lon: -87.0, time: '2005-08-28T06:00Z', wind_mph: 160, pressure_mb: 915, category: 5, status: 'H5' },
-      { lat: 26.3, lon: -88.6, time: '2005-08-28T18:00Z', wind_mph: 175, pressure_mb: 902, category: 5, status: 'H5' },
-      { lat: 28.2, lon: -89.2, time: '2005-08-29T06:00Z', wind_mph: 145, pressure_mb: 920, category: 4, status: 'H4' },
-      { lat: 29.3, lon: -89.6, time: '2005-08-29T12:00Z', wind_mph: 125, pressure_mb: 928, category: 3, status: 'H3' },
-      { lat: 31.1, lon: -89.6, time: '2005-08-29T18:00Z', wind_mph: 80, pressure_mb: 960, category: 1, status: 'H1' },
-      { lat: 34.1, lon: -88.1, time: '2005-08-30T12:00Z', wind_mph: 45, pressure_mb: 985, category: null, status: 'TS' },
-    ],
-  },
-  {
-    id: 'h3',
-    name: 'Hurricane Harvey',
-    season: 2017,
-    maxCategory: 4,
-    maxWindMph: 130,
-    minPressureMb: 937,
-    damage: 125000000000,
-    deaths: 107,
-    track: [
-      { lat: 13.4, lon: -35.0, time: '2017-08-17T00:00Z', wind_mph: 40, pressure_mb: 1007, category: null, status: 'TS' },
-      { lat: 14.0, lon: -45.0, time: '2017-08-19T00:00Z', wind_mph: 50, pressure_mb: 1003, category: null, status: 'TS' },
-      { lat: 15.5, lon: -60.0, time: '2017-08-21T00:00Z', wind_mph: 40, pressure_mb: 1006, category: null, status: 'TD' },
-      { lat: 21.5, lon: -85.0, time: '2017-08-23T12:00Z', wind_mph: 45, pressure_mb: 1003, category: null, status: 'TS' },
-      { lat: 23.0, lon: -90.0, time: '2017-08-24T12:00Z', wind_mph: 65, pressure_mb: 995, category: null, status: 'TS' },
-      { lat: 24.5, lon: -93.5, time: '2017-08-25T06:00Z', wind_mph: 110, pressure_mb: 960, category: 2, status: 'H2' },
-      { lat: 26.0, lon: -95.5, time: '2017-08-25T18:00Z', wind_mph: 130, pressure_mb: 937, category: 4, status: 'H4' },
-      { lat: 27.8, lon: -97.0, time: '2017-08-26T03:00Z', wind_mph: 130, pressure_mb: 938, category: 4, status: 'H4' },
-      { lat: 28.5, lon: -97.2, time: '2017-08-26T12:00Z', wind_mph: 90, pressure_mb: 965, category: 1, status: 'H1' },
-      { lat: 29.0, lon: -96.5, time: '2017-08-27T00:00Z', wind_mph: 50, pressure_mb: 990, category: null, status: 'TS' },
-      { lat: 29.5, lon: -95.5, time: '2017-08-28T00:00Z', wind_mph: 45, pressure_mb: 995, category: null, status: 'TS' },
-      { lat: 29.8, lon: -93.8, time: '2017-08-30T00:00Z', wind_mph: 50, pressure_mb: 992, category: null, status: 'TS' },
-    ],
-  },
-  {
-    id: 'h4',
-    name: 'Hurricane Ian',
-    season: 2022,
-    maxCategory: 5,
-    maxWindMph: 160,
-    minPressureMb: 937,
-    damage: 110000000000,
-    deaths: 150,
-    track: [
-      { lat: 14.3, lon: -61.4, time: '2022-09-23T18:00Z', wind_mph: 40, pressure_mb: 1004, category: null, status: 'TS' },
-      { lat: 15.2, lon: -68.5, time: '2022-09-25T00:00Z', wind_mph: 50, pressure_mb: 999, category: null, status: 'TS' },
-      { lat: 16.0, lon: -75.0, time: '2022-09-26T00:00Z', wind_mph: 75, pressure_mb: 985, category: 1, status: 'H1' },
-      { lat: 18.5, lon: -79.5, time: '2022-09-26T18:00Z', wind_mph: 105, pressure_mb: 965, category: 2, status: 'H2' },
-      { lat: 20.5, lon: -82.5, time: '2022-09-27T06:00Z', wind_mph: 125, pressure_mb: 950, category: 3, status: 'H3' },
-      { lat: 22.0, lon: -83.5, time: '2022-09-27T18:00Z', wind_mph: 125, pressure_mb: 950, category: 3, status: 'H3' },
-      { lat: 23.8, lon: -83.2, time: '2022-09-28T06:00Z', wind_mph: 155, pressure_mb: 937, category: 4, status: 'H4' },
-      { lat: 26.7, lon: -82.2, time: '2022-09-28T19:00Z', wind_mph: 150, pressure_mb: 940, category: 4, status: 'H4' },
-      { lat: 27.5, lon: -81.5, time: '2022-09-29T00:00Z', wind_mph: 100, pressure_mb: 965, category: 2, status: 'H2' },
-      { lat: 28.8, lon: -81.0, time: '2022-09-29T06:00Z', wind_mph: 70, pressure_mb: 980, category: 1, status: 'H1' },
-      { lat: 30.5, lon: -80.0, time: '2022-09-30T06:00Z', wind_mph: 85, pressure_mb: 975, category: 1, status: 'H1' },
-      { lat: 32.9, lon: -79.4, time: '2022-09-30T18:00Z', wind_mph: 85, pressure_mb: 976, category: 1, status: 'H1' },
-    ],
-  },
-  {
-    id: 'h5',
-    name: 'Hurricane Sandy',
-    season: 2012,
-    maxCategory: 3,
-    maxWindMph: 115,
-    minPressureMb: 940,
-    damage: 70000000000,
-    deaths: 233,
-    track: [
-      { lat: 14.3, lon: -77.6, time: '2012-10-22T12:00Z', wind_mph: 45, pressure_mb: 1002, category: null, status: 'TS' },
-      { lat: 15.0, lon: -77.8, time: '2012-10-23T00:00Z', wind_mph: 65, pressure_mb: 992, category: null, status: 'TS' },
-      { lat: 16.0, lon: -77.8, time: '2012-10-24T00:00Z', wind_mph: 80, pressure_mb: 975, category: 1, status: 'H1' },
-      { lat: 17.8, lon: -76.8, time: '2012-10-24T18:00Z', wind_mph: 105, pressure_mb: 955, category: 2, status: 'H2' },
-      { lat: 19.5, lon: -75.8, time: '2012-10-25T12:00Z', wind_mph: 115, pressure_mb: 940, category: 3, status: 'H3' },
-      { lat: 22.0, lon: -76.0, time: '2012-10-26T06:00Z', wind_mph: 105, pressure_mb: 950, category: 2, status: 'H2' },
-      { lat: 24.0, lon: -76.5, time: '2012-10-26T18:00Z', wind_mph: 80, pressure_mb: 965, category: 1, status: 'H1' },
-      { lat: 27.2, lon: -77.5, time: '2012-10-27T12:00Z', wind_mph: 80, pressure_mb: 960, category: 1, status: 'H1' },
-      { lat: 30.5, lon: -76.0, time: '2012-10-28T12:00Z', wind_mph: 75, pressure_mb: 958, category: 1, status: 'H1' },
-      { lat: 34.5, lon: -73.5, time: '2012-10-29T06:00Z', wind_mph: 90, pressure_mb: 943, category: 1, status: 'H1' },
-      { lat: 38.0, lon: -71.5, time: '2012-10-29T18:00Z', wind_mph: 90, pressure_mb: 945, category: 1, status: 'H1' },
-      { lat: 39.5, lon: -74.4, time: '2012-10-30T00:00Z', wind_mph: 80, pressure_mb: 946, category: null, status: 'Post-Tropical' },
-    ],
-  },
-  {
-    id: 'h6',
-    name: 'Hurricane Michael',
-    season: 2018,
-    maxCategory: 5,
-    maxWindMph: 160,
-    minPressureMb: 919,
-    damage: 25000000000,
-    deaths: 74,
-    track: [
-      { lat: 18.0, lon: -86.6, time: '2018-10-07T12:00Z', wind_mph: 50, pressure_mb: 1004, category: null, status: 'TS' },
-      { lat: 19.5, lon: -86.0, time: '2018-10-08T00:00Z', wind_mph: 65, pressure_mb: 994, category: null, status: 'TS' },
-      { lat: 21.0, lon: -86.0, time: '2018-10-08T12:00Z', wind_mph: 80, pressure_mb: 982, category: 1, status: 'H1' },
-      { lat: 22.7, lon: -86.2, time: '2018-10-09T00:00Z', wind_mph: 105, pressure_mb: 965, category: 2, status: 'H2' },
-      { lat: 25.0, lon: -86.5, time: '2018-10-09T18:00Z', wind_mph: 130, pressure_mb: 945, category: 4, status: 'H4' },
-      { lat: 28.0, lon: -86.0, time: '2018-10-10T12:00Z', wind_mph: 155, pressure_mb: 923, category: 4, status: 'H4' },
-      { lat: 30.2, lon: -85.4, time: '2018-10-10T17:00Z', wind_mph: 160, pressure_mb: 919, category: 5, status: 'H5' },
-      { lat: 31.5, lon: -84.8, time: '2018-10-10T23:00Z', wind_mph: 100, pressure_mb: 955, category: 2, status: 'H2' },
-      { lat: 33.5, lon: -83.5, time: '2018-10-11T12:00Z', wind_mph: 60, pressure_mb: 980, category: null, status: 'TS' },
-    ],
-  },
-]
+// =============================================================================
+// TYPES
+// =============================================================================
 
 interface HistoricalEvent {
   id: string
@@ -208,6 +48,7 @@ interface HistoricalEvent {
   lon: number
   date: string
   damage: number
+  significance_score: number
 }
 
 // Get category color
@@ -234,6 +75,14 @@ export default function IndemnityHistorical() {
   const [searchQuery, setSearchQuery] = useState('')
   const [eventType, setEventType] = useState<'all' | 'earthquake' | 'hurricane'>('all')
 
+  // NEW: State for loading historical events from API
+  const [loadMode, setLoadMode] = useState<LoadMode>('significant')
+  const [topEventsLimit, setTopEventsLimit] = useState<number>(30)
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [earthquakes, setEarthquakes] = useState<HistoricalEarthquake[]>([])
+  const [hurricanes, setHurricanes] = useState<HistoricalHurricane[]>([])
+
   const {
     datasets,
     activeDatasetId,
@@ -244,24 +93,58 @@ export default function IndemnityHistorical() {
 
   const activeDataset = datasets.find((d) => d.id === activeDatasetId)
 
-  // Combine historical events for the list (using first track point for hurricanes)
+  // Load historical events from API
+  const loadHistoricalEvents = useCallback(async () => {
+    setIsLoadingEvents(true)
+    setLoadError(null)
+    
+    try {
+      const effectiveLimit = loadMode === 'significant' ? topEventsLimit : 1000
+      const [eqData, tcData] = await Promise.all([
+        fetchHistoricalEarthquakes({ mode: loadMode, limit: effectiveLimit }),
+        fetchHistoricalHurricanes({ mode: loadMode, limit: effectiveLimit }),
+      ])
+      
+      setEarthquakes(eqData)
+      setHurricanes(tcData)
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load events')
+      console.error('Failed to load historical events:', err)
+    } finally {
+      setIsLoadingEvents(false)
+    }
+  }, [loadMode, topEventsLimit])
+
+  // Load events on mount and when loadMode/topEventsLimit changes
+  useEffect(() => {
+    loadHistoricalEvents()
+  }, [loadHistoricalEvents])
+
+  // Combine historical events for the list
   const allHistoricalEvents: HistoricalEvent[] = [
-    ...HISTORICAL_EARTHQUAKES.map(eq => ({ 
-      ...eq, 
+    ...earthquakes.map(eq => ({ 
+      id: eq.id,
+      name: eq.name,
       type: 'earthquake' as const,
+      magnitude: eq.magnitude,
+      lat: eq.lat,
+      lon: eq.lon,
       date: eq.date,
+      damage: eq.damage_usd || 0,
+      significance_score: eq.significance_score,
     })),
-    ...HISTORICAL_HURRICANES.map(h => ({ 
+    ...hurricanes.map(h => ({ 
       id: h.id,
       name: h.name, 
       type: 'hurricane' as const,
-      category: h.maxCategory,
-      lat: h.track[Math.floor(h.track.length / 2)].lat, // midpoint of track
-      lon: h.track[Math.floor(h.track.length / 2)].lon,
-      date: h.track[0].time.split('T')[0],
-      damage: h.damage,
+      category: h.max_category,
+      lat: h.track.length > 0 ? h.track[Math.floor(h.track.length / 2)].lat : 0,
+      lon: h.track.length > 0 ? h.track[Math.floor(h.track.length / 2)].lon : 0,
+      date: h.track.length > 0 ? h.track[0].time.split('T')[0] : `${h.season}-01-01`,
+      damage: h.damage_usd || 0,
+      significance_score: h.significance_score,
     })),
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  ].sort((a, b) => b.significance_score - a.significance_score)
 
   // Filter events
   const filteredEvents = allHistoricalEvents.filter(event => {
@@ -477,8 +360,8 @@ export default function IndemnityHistorical() {
       mapRef.current.removeSource('hurricane-tracks')
     }
 
-    const selectedHurricanes = HISTORICAL_HURRICANES.filter(h => selectedEvents.includes(h.id))
-    const selectedEarthquakes = HISTORICAL_EARTHQUAKES.filter(eq => selectedEvents.includes(eq.id))
+    const selectedHurricanes = hurricanes.filter(h => selectedEvents.includes(h.id))
+    const selectedEarthquakes = earthquakes.filter(eq => selectedEvents.includes(eq.id))
 
     // Render earthquake markers
     selectedEarthquakes.forEach((eq) => {
@@ -497,7 +380,7 @@ export default function IndemnityHistorical() {
         currency: 'USD',
         notation: 'compact',
         maximumFractionDigits: 1,
-      }).format(eq.damage)
+      }).format(eq.damage_usd || 0)
 
       const popup = new maplibregl.Popup({ offset: 15 }).setHTML(`
         <div style="padding: 12px; max-width: 280px;">
@@ -506,8 +389,8 @@ export default function IndemnityHistorical() {
           </div>
           <div style="font-size: 13px; color: #333;">
             <div style="margin-bottom: 4px;"><strong>Date:</strong> ${new Date(eq.date).toLocaleDateString()}</div>
-            <div style="margin-bottom: 4px;"><strong>Magnitude:</strong> ${eq.magnitude}</div>
-            <div style="margin-bottom: 4px;"><strong>Deaths:</strong> ${eq.deaths}</div>
+            <div style="margin-bottom: 4px;"><strong>Magnitude:</strong> M${eq.magnitude.toFixed(1)}</div>
+            ${eq.depth_km ? `<div style="margin-bottom: 4px;"><strong>Depth:</strong> ${eq.depth_km.toFixed(0)} km</div>` : ''}
             <div><strong>Est. Damage:</strong> ${formattedDamage}</div>
           </div>
         </div>
@@ -521,26 +404,34 @@ export default function IndemnityHistorical() {
       eventMarkersRef.current.push(marker)
     })
 
-    // Render hurricane tracks with GeoJSON
+    // Render hurricane tracks with intensity-based segment coloring
     if (selectedHurricanes.length > 0) {
-      const trackFeatures: GeoJSON.Feature[] = []
+      const segmentFeatures: GeoJSON.Feature[] = []
       const pointFeatures: GeoJSON.Feature[] = []
 
       selectedHurricanes.forEach((hurricane) => {
-        // Create line feature for the track
-        const coordinates = hurricane.track.map(pt => [pt.lon, pt.lat])
-        
-        trackFeatures.push({
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates,
-          },
-          properties: {
-            name: hurricane.name,
-            maxCategory: hurricane.maxCategory,
-          },
-        })
+        // Create individual line segments between track points, colored by category
+        for (let i = 0; i < hurricane.track.length - 1; i++) {
+          const pt = hurricane.track[i]
+          const nextPt = hurricane.track[i + 1]
+          
+          segmentFeatures.push({
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [pt.lon, pt.lat],
+                [nextPt.lon, nextPt.lat],
+              ],
+            },
+            properties: {
+              name: hurricane.name,
+              category: pt.category ?? 0,
+              wind_mph: pt.wind_mph,
+              color: getCategoryColor(pt.category ?? null),
+            },
+          })
+        }
 
         // Create point features for each track point with detailed info
         hurricane.track.forEach((pt, idx) => {
@@ -557,8 +448,8 @@ export default function IndemnityHistorical() {
               pressure_mb: pt.pressure_mb,
               category: pt.category,
               status: pt.status,
-              color: getCategoryColor(pt.category),
-              isLandfall: idx === hurricane.track.findIndex(p => p.category === hurricane.maxCategory),
+              color: getCategoryColor(pt.category ?? null),
+              isLandfall: idx === hurricane.track.findIndex(p => p.category === hurricane.max_category),
             },
           })
         })
@@ -569,20 +460,20 @@ export default function IndemnityHistorical() {
         type: 'geojson',
         data: {
           type: 'FeatureCollection',
-          features: [...trackFeatures, ...pointFeatures],
+          features: [...segmentFeatures, ...pointFeatures],
         },
       })
 
-      // Add track line layer
+      // Add track line layer with category-based coloring
       mapRef.current.addLayer({
         id: 'hurricane-tracks',
         type: 'line',
         source: 'hurricane-tracks',
         filter: ['==', '$type', 'LineString'],
         paint: {
-          'line-color': '#3b82f6',
+          'line-color': ['get', 'color'],
           'line-width': 3,
-          'line-opacity': 0.8,
+          'line-opacity': 0.9,
         },
       })
 
@@ -665,7 +556,7 @@ export default function IndemnityHistorical() {
       
       mapRef.current.fitBounds(bounds, { padding: 50, maxZoom: 8 })
     }
-  }, [selectedEvents, isMapReady, showEvents, clearEventMarkers, activeDataset])
+  }, [selectedEvents, isMapReady, showEvents, clearEventMarkers, activeDataset, earthquakes, hurricanes])
 
   // Toggle event selection
   const toggleEventSelection = (eventId: string) => {
@@ -730,6 +621,66 @@ export default function IndemnityHistorical() {
 
           {isEventPanelExpanded && (
             <div className="px-4 pb-4 space-y-3">
+              {/* Load Mode Toggle */}
+              <div className="bg-gray-700/50 p-2 rounded-lg">
+                <div className="text-xs text-gray-400 mb-2 font-medium">Display Events</div>
+                <div className="grid grid-cols-4 gap-1 mb-2">
+                  {[10, 20, 30, null].map((limit) => (
+                    <button
+                      key={limit ?? 'all'}
+                      onClick={() => {
+                        if (limit === null) {
+                          setLoadMode('all')
+                        } else {
+                          setLoadMode('significant')
+                          setTopEventsLimit(limit)
+                        }
+                      }}
+                      disabled={isLoadingEvents}
+                      className={`px-2 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1 disabled:opacity-50 ${
+                        (loadMode === 'significant' && topEventsLimit === limit) || (loadMode === 'all' && limit === null)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                      }`}
+                    >
+                      {limit ? (
+                        <>
+                          <Star className="w-3 h-3" />
+                          {limit}
+                        </>
+                      ) : (
+                        <>
+                          <Database className="w-3 h-3" />
+                          All
+                        </>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">
+                    {loadMode === 'significant' 
+                      ? `Top ${topEventsLimit} significant events`
+                      : `All events loaded`}
+                    : {earthquakes.length} EQ + {hurricanes.length} TC
+                  </span>
+                  <button
+                    onClick={loadHistoricalEvents}
+                    disabled={isLoadingEvents}
+                    className="flex items-center space-x-1 px-2 py-1 text-xs bg-gray-600 text-gray-300 hover:bg-gray-500 rounded transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isLoadingEvents ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+                {loadError && (
+                  <div className="mt-2 text-xs text-red-400 flex items-center space-x-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span>{loadError}</span>
+                  </div>
+                )}
+              </div>
+
               {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -775,7 +726,16 @@ export default function IndemnityHistorical() {
                 </button>
               </div>
 
+              {/* Loading State */}
+              {isLoadingEvents && (
+                <div className="flex items-center justify-center py-4 text-gray-400">
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  <span className="text-sm">Loading events...</span>
+                </div>
+              )}
+
               {/* Event List */}
+              {!isLoadingEvents && (
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {filteredEvents.map((event) => (
                   <button
@@ -795,7 +755,7 @@ export default function IndemnityHistorical() {
                       </div>
                       <div className="text-xs text-gray-500">
                         {new Date(event.date).toLocaleDateString()} •
-                        {event.type === 'earthquake' ? ` M${event.magnitude}` : ` Cat ${event.category}`}
+                        {event.type === 'earthquake' ? ` M${event.magnitude?.toFixed(1)}` : ` Cat ${event.category}`}
                       </div>
                     </div>
                     {selectedEvents.includes(event.id) && (
@@ -804,6 +764,7 @@ export default function IndemnityHistorical() {
                   </button>
                 ))}
               </div>
+              )}
             </div>
           )}
         </div>

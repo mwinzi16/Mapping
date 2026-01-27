@@ -112,6 +112,7 @@ export interface AnalysisFilters {
   minCategory: number
   basin: string | null
   dataset: DatasetType
+  topEventsLimit: number | null  // null = show all, number = show top N by significance
 }
 
 // =====================

@@ -24,7 +24,7 @@ export default function Home() {
 
       {/* Main Menu Cards */}
       <div className="max-w-6xl mx-auto px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Parametric Analysis Card */}
           <Link
             to="/parametric/live"

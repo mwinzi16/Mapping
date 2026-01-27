@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useParametricStore } from '../../stores/parametricStore'
 import { parametricApi } from '../../services/parametricApi'
 import { DatasetType } from '../../types/parametric'
+import { Star, Database } from 'lucide-react'
 
 export default function FilterPanel() {
-  const { filters, setFilters, fetchHistoricalHurricanes, datasets, fetchDatasets } = useParametricStore()
+  const { filters, setFilters, fetchHistoricalHurricanes, datasets, fetchDatasets, hurricanes } = useParametricStore()
   const [basins, setBasins] = useState<string[]>([])
   const [yearRange, setYearRange] = useState<{ min: number; max: number }>({ min: 1980, max: 2024 })
   
@@ -116,6 +117,41 @@ export default function FilterPanel() {
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Top Events Selector */}
+      <div>
+        <label className="text-xs text-gray-400 mb-2 block">Display Events</label>
+        <div className="grid grid-cols-4 gap-1">
+          {[10, 20, 30, null].map((limit) => (
+            <button
+              key={limit ?? 'all'}
+              onClick={() => setFilters({ topEventsLimit: limit })}
+              className={`px-2 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
+                filters.topEventsLimit === limit
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              {limit ? (
+                <>
+                  <Star className="w-3 h-3" />
+                  {limit}
+                </>
+              ) : (
+                <>
+                  <Database className="w-3 h-3" />
+                  All
+                </>
+              )}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          {filters.topEventsLimit 
+            ? `Showing top ${filters.topEventsLimit} most significant events`
+            : `Showing all ${hurricanes.length} events`}
+        </p>
       </div>
       
       <button

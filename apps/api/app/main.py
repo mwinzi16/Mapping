@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import earthquakes, hurricanes, notifications, wildfires, severe_weather, subscriptions, parametric, earthquake_parametric
+from app.routers import earthquakes, hurricanes, notifications, wildfires, severe_weather, subscriptions, parametric, earthquake_parametric, indemnity
 from app.core.config import settings
 from app.services.realtime_service import realtime_service
 
@@ -47,6 +47,7 @@ app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["Sub
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
 app.include_router(parametric.router, prefix="/api", tags=["Parametric Insurance - Tropical Cyclone"])
 app.include_router(earthquake_parametric.router, prefix="/api", tags=["Parametric Insurance - Earthquake"])
+app.include_router(indemnity.router, prefix="/api", tags=["Indemnity Insurance"])
 
 
 @app.get("/")

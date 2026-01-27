@@ -1,6 +1,7 @@
 import { useIndemnityStore } from '../../stores/indemnityStore'
 import { DollarSign, MapPin, TrendingUp, BarChart3 } from 'lucide-react'
 import { formatTIV, formatTIVShort } from '../../utils/tivExcelUtils'
+import { CHART_COLORS, CHART_STYLES } from '../../utils/chartConstants'
 
 export default function TIVStatisticsPanel() {
   const { statistics, datasets, activeDatasetId } = useIndemnityStore()
@@ -22,8 +23,8 @@ export default function TIVStatisticsPanel() {
   return (
     <div className="px-4 pb-4 space-y-4">
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-gradient-to-r from-purple-900/50 to-pink-900/50 p-3 rounded-lg">
+      <div className={CHART_STYLES.statsGrid2}>
+        <div className={CHART_STYLES.gradientCardTIV}>
           <div className="flex items-center space-x-1 mb-1">
             <DollarSign className="w-3 h-3 text-purple-400" />
             <span className="text-xs text-gray-400">Total TIV</span>
@@ -36,7 +37,7 @@ export default function TIVStatisticsPanel() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-blue-900/50 to-cyan-900/50 p-3 rounded-lg">
+        <div className={CHART_STYLES.gradientCardTC}>
           <div className="flex items-center space-x-1 mb-1">
             <MapPin className="w-3 h-3 text-blue-400" />
             <span className="text-xs text-gray-400">Locations</span>
@@ -46,7 +47,7 @@ export default function TIVStatisticsPanel() {
           </div>
         </div>
 
-        <div className="bg-gray-700/50 p-3 rounded-lg">
+        <div className={CHART_STYLES.card}>
           <div className="flex items-center space-x-1 mb-1">
             <TrendingUp className="w-3 h-3 text-green-400" />
             <span className="text-xs text-gray-400">Average TIV</span>
@@ -56,7 +57,7 @@ export default function TIVStatisticsPanel() {
           </div>
         </div>
 
-        <div className="bg-gray-700/50 p-3 rounded-lg">
+        <div className={CHART_STYLES.card}>
           <div className="flex items-center space-x-1 mb-1">
             <BarChart3 className="w-3 h-3 text-yellow-400" />
             <span className="text-xs text-gray-400">Median TIV</span>
@@ -68,7 +69,7 @@ export default function TIVStatisticsPanel() {
       </div>
 
       {/* Min/Max */}
-      <div className="bg-gray-700/50 p-3 rounded-lg">
+      <div className={CHART_STYLES.card}>
         <div className="flex justify-between text-xs">
           <div>
             <span className="text-gray-400">Min TIV: </span>
@@ -83,7 +84,7 @@ export default function TIVStatisticsPanel() {
 
       {/* By Category */}
       {Object.keys(statistics.byCategory).length > 0 && (
-        <div className="bg-gray-700/50 p-3 rounded-lg">
+        <div className={CHART_STYLES.card}>
           <div className="text-xs text-gray-400 mb-2 font-medium">TIV by Category</div>
           <div className="space-y-2">
             {Object.entries(statistics.byCategory)
@@ -110,7 +111,7 @@ export default function TIVStatisticsPanel() {
 
       {/* By State */}
       {statistics.byState && Object.keys(statistics.byState).length > 0 && (
-        <div className="bg-gray-700/50 p-3 rounded-lg">
+        <div className={CHART_STYLES.card}>
           <div className="text-xs text-gray-400 mb-2 font-medium">TIV by State (Top 5)</div>
           <div className="space-y-1.5">
             {Object.entries(statistics.byState)

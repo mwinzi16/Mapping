@@ -6,6 +6,7 @@ interface ParametricStore {
   // Data
   boxes: BoundingBox[]
   hurricanes: HistoricalHurricane[]
+  allHurricanes: HistoricalHurricane[]  // All fetched hurricanes before top-N filter
   statistics: Record<string, BoxStatistics>
   datasets: DatasetInfo[]
   
@@ -40,12 +41,14 @@ const DEFAULT_FILTERS: AnalysisFilters = {
   minCategory: 0,
   basin: null,
   dataset: 'ibtracs',
+  topEventsLimit: null,  // null = show all, number = show top N by significance
 }
 
 export const useParametricStore = create<ParametricStore>((set, get) => ({
   // Initial state
   boxes: [],
   hurricanes: [],
+  allHurricanes: [],
   statistics: {},
   datasets: [],
   selectedBoxId: null,
@@ -98,9 +101,26 @@ export const useParametricStore = create<ParametricStore>((set, get) => ({
   },
   
   setFilters: (newFilters) => {
-    set((state) => ({
-      filters: { ...state.filters, ...newFilters },
-    }))
+    set((state) => {
+      const updatedFilters = { ...state.filters, ...newFilters }
+      
+      // If topEventsLimit changed, re-filter the displayed hurricanes
+      if ('topEventsLimit' in newFilters) {
+        const limit = updatedFilters.topEventsLimit
+        let filteredHurricanes = state.allHurricanes
+        
+        if (limit !== null && limit > 0) {
+          // Sort by significance (max_wind_knots as proxy) and take top N
+          filteredHurricanes = [...state.allHurricanes]
+            .sort((a, b) => b.max_wind_knots - a.max_wind_knots)
+            .slice(0, limit)
+        }
+        
+        return { filters: updatedFilters, hurricanes: filteredHurricanes }
+      }
+      
+      return { filters: updatedFilters }
+    })
   },
   
   // API Actions
@@ -118,8 +138,17 @@ export const useParametricStore = create<ParametricStore>((set, get) => ({
     set({ isLoading: true, error: null })
     
     try {
-      const hurricanes = await parametricApi.getHistoricalHurricanes(filters)
-      set({ hurricanes, isLoading: false })
+      const allHurricanes = await parametricApi.getHistoricalHurricanes(filters)
+      
+      // Apply topEventsLimit filter if set
+      let hurricanes = allHurricanes
+      if (filters.topEventsLimit !== null && filters.topEventsLimit > 0) {
+        hurricanes = [...allHurricanes]
+          .sort((a, b) => b.max_wind_knots - a.max_wind_knots)
+          .slice(0, filters.topEventsLimit)
+      }
+      
+      set({ allHurricanes, hurricanes, isLoading: false })
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch hurricanes',

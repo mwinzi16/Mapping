@@ -13,6 +13,7 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { EarthquakeTriggerCriteria } from '../../types/parametric'
+import { CHART_COLORS, CHART_STYLES } from '../../utils/chartConstants'
 
 interface EarthquakeStatisticsPanelProps {
   embedded?: boolean
@@ -102,7 +103,7 @@ export default function EarthquakeStatisticsPanel({ embedded = false }: Earthqua
           </div>
 
           {/* Trigger Probability - Main Stat */}
-          <div className="bg-gradient-to-r from-yellow-900/50 to-orange-900/50 p-4 rounded-lg">
+          <div className={CHART_STYLES.gradientCardEQ}>
             <div className="flex items-center space-x-2 mb-1">
               <TrendingUp className="w-4 h-4 text-yellow-400" />
               <span className="text-xs text-gray-400 uppercase">
@@ -118,8 +119,8 @@ export default function EarthquakeStatisticsPanel({ embedded = false }: Earthqua
           </div>
 
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gray-700/50 p-3 rounded-lg">
+          <div className={CHART_STYLES.statsGrid2}>
+            <div className={CHART_STYLES.card}>
               <div className="flex items-center space-x-1 mb-1">
                 <AlertTriangle className="w-3 h-3 text-orange-400" />
                 <span className="text-xs text-gray-400">Total Events</span>

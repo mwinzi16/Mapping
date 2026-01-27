@@ -7,7 +7,7 @@ import {
   EarthquakeDatasetInfo,
 } from '../types/parametric'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8001'
 
 export const earthquakeParametricApi = {
   /**
