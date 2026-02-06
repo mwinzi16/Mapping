@@ -1,14 +1,14 @@
 import axios from 'axios'
 import { BoundingBox, HistoricalHurricane, BoxStatistics, AnalysisFilters, DatasetInfo, DatasetType } from '../types/parametric'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8001'
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 export const parametricApi = {
   /**
    * Get available hurricane datasets.
    */
   async getAvailableDatasets(): Promise<DatasetInfo[]> {
-    const response = await axios.get<DatasetInfo[]>(`${API_BASE}/api/parametric/datasets`)
+    const response = await axios.get<DatasetInfo[]>(`${API_BASE}/parametric/datasets`)
     return response.data
   },
   
@@ -26,7 +26,7 @@ export const parametricApi = {
     }
     
     const response = await axios.get<HistoricalHurricane[]>(
-      `${API_BASE}/api/parametric/hurricanes/historical?${params}`
+      `${API_BASE}/parametric/hurricanes/historical?${params}`
     )
     return response.data
   },
@@ -39,7 +39,7 @@ export const parametricApi = {
     filters: AnalysisFilters
   ): Promise<HistoricalHurricane[]> {
     const response = await axios.post<HistoricalHurricane[]>(
-      `${API_BASE}/api/parametric/analysis/intersections`,
+      `${API_BASE}/parametric/analysis/intersections`,
       {
         box,
         start_year: filters.startYear,
@@ -60,7 +60,7 @@ export const parametricApi = {
     filters: AnalysisFilters
   ): Promise<BoxStatistics> {
     const response = await axios.post<BoxStatistics>(
-      `${API_BASE}/api/parametric/analysis/statistics`,
+      `${API_BASE}/parametric/analysis/statistics`,
       {
         box,
         start_year: filters.startYear,
@@ -81,7 +81,7 @@ export const parametricApi = {
     filters: AnalysisFilters
   ): Promise<Record<string, BoxStatistics>> {
     const response = await axios.post<Record<string, BoxStatistics>>(
-      `${API_BASE}/api/parametric/analysis/bulk-statistics`,
+      `${API_BASE}/parametric/analysis/bulk-statistics`,
       {
         boxes,
         start_year: filters.startYear,
@@ -98,7 +98,7 @@ export const parametricApi = {
    * Get available basins for filtering.
    */
   async getBasins(dataset: DatasetType = 'ibtracs'): Promise<string[]> {
-    const response = await axios.get<string[]>(`${API_BASE}/api/parametric/basins?dataset=${dataset}`)
+    const response = await axios.get<string[]>(`${API_BASE}/parametric/basins?dataset=${dataset}`)
     return response.data
   },
   
@@ -107,7 +107,7 @@ export const parametricApi = {
    */
   async getYearRange(dataset: DatasetType = 'ibtracs'): Promise<{ min_year: number; max_year: number }> {
     const response = await axios.get<{ min_year: number; max_year: number }>(
-      `${API_BASE}/api/parametric/year-range?dataset=${dataset}`
+      `${API_BASE}/parametric/year-range?dataset=${dataset}`
     )
     return response.data
   },

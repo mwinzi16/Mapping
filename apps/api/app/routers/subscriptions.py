@@ -1,17 +1,20 @@
 """
 Subscription API endpoints for email alerts.
 """
+from __future__ import annotations
+
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import EmailStr
 
 from app.schemas.subscription import (
     SubscriptionCreate,
-    SubscriptionUpdate,
-    SubscriptionResponse,
     SubscriptionMessage,
+    SubscriptionResponse,
+    SubscriptionUpdate,
 )
 from app.services.email_service import email_service
 
@@ -73,10 +76,10 @@ async def subscribe(
         "alert_hail": subscription.alert_hail,
         "min_earthquake_magnitude": subscription.min_earthquake_magnitude,
         "min_hurricane_category": subscription.min_hurricane_category,
-        "location_filter": subscription.location_filter.dict() if subscription.location_filter else None,
+        "location_filter": subscription.location_filter.model_dump() if subscription.location_filter else None,
         "max_emails_per_day": subscription.max_emails_per_day,
         "emails_sent_today": 0,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
     
     # Send verification email
@@ -142,9 +145,9 @@ async def update_preferences(email: str, updates: SubscriptionUpdate):
     
     sub = _subscriptions[email]
     
-    for field, value in updates.dict(exclude_none=True).items():
+    for field, value in updates.model_dump(exclude_none=True).items():
         if field == "location_filter" and value:
-            sub[field] = value.dict() if hasattr(value, 'dict') else value
+            sub[field] = value.model_dump() if hasattr(value, 'model_dump') else value
         else:
             sub[field] = value
     

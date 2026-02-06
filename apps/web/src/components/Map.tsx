@@ -121,7 +121,7 @@ export default function Map() {
   }, [zones.length, addZones])
   
   // Generate GeoJSON for trigger zones
-  const zonesGeoJSON = useCallback(() => {
+  const zonesGeoJSON = useMemo(() => {
     const features = zones.map((zone) => {
       const calc = calculations.find(c => c.zoneId === zone.id)
       return {
@@ -290,7 +290,7 @@ export default function Map() {
       )}
 
       {/* Trigger zones layer */}
-      <Source id="trigger-zones" type="geojson" data={zonesGeoJSON()}>
+      <Source id="trigger-zones" type="geojson" data={zonesGeoJSON}>
         <Layer
           id="zones-fill"
           type="fill"

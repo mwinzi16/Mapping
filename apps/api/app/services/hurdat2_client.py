@@ -3,10 +3,18 @@ NOAA HURDAT2 (Hurricane Database) Client.
 Atlantic hurricane database from 1851-present.
 https://www.nhc.noaa.gov/data/hurdat/
 """
-from datetime import datetime
-from typing import Optional, List, Dict, Any
-import httpx
+from __future__ import annotations
+
+import logging
 import re
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import httpx
+
+from app.utils.weather import wind_to_category
+
+logger = logging.getLogger(__name__)
 
 
 class HURDAT2Client:
@@ -68,7 +76,7 @@ class HURDAT2Client:
             response.raise_for_status()
             return self._parse_hurdat2(response.text)
         except httpx.HTTPError as e:
-            print(f"Error fetching HURDAT2 data: {e}")
+            logger.error("Error fetching HURDAT2 data: %s", e)
             return []
     
     def _parse_hurdat2(self, text: str) -> List[Dict[str, Any]]:
@@ -124,7 +132,7 @@ class HURDAT2Client:
                         wind = track_point.get("wind_knots", 0)
                         if wind > max_wind:
                             max_wind = wind
-                            max_category = self._wind_to_category(wind)
+                            max_category = wind_to_category(wind)
                         
                         # Track min pressure
                         pressure = track_point.get("pressure_mb")
@@ -202,28 +210,12 @@ class HURDAT2Client:
                 "longitude": lon,
                 "wind_knots": wind_knots,
                 "pressure_mb": pressure_mb if pressure_mb and pressure_mb > 0 else None,
-                "category": self._wind_to_category(wind_knots),
+                "category": wind_to_category(wind_knots),
                 "status": status,
                 "record_id": record_id,
             }
         except (ValueError, IndexError) as e:
             return None
-    
-    @staticmethod
-    def _wind_to_category(wind_knots: int) -> int:
-        """Convert wind speed in knots to Saffir-Simpson category."""
-        if wind_knots >= 137:
-            return 5
-        elif wind_knots >= 113:
-            return 4
-        elif wind_knots >= 96:
-            return 3
-        elif wind_knots >= 83:
-            return 2
-        elif wind_knots >= 64:
-            return 1
-        else:
-            return 0  # Tropical Storm or lower
     
     def get_available_basins(self) -> List[str]:
         """Return list of available ocean basins."""

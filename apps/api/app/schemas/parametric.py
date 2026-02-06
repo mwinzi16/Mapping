@@ -1,10 +1,13 @@
 """
 Pydantic schemas for parametric insurance analysis.
 """
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional, List, Dict, Literal
-from pydantic import BaseModel, Field
 from enum import Enum
+from typing import Dict, List, Literal, Optional
+
+from pydantic import BaseModel, Field
 
 
 class DatasetType(str, Enum):

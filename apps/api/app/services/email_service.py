@@ -2,15 +2,20 @@
 Email service for sending alert notifications.
 Uses SMTP - can be configured for SendGrid, SES, or any SMTP provider.
 """
+from __future__ import annotations
+
+import asyncio
+import logging
 import smtplib
 import ssl
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from typing import Optional, List, Dict, Any
 from datetime import datetime
-import asyncio
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any, Dict, List, Optional
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class EmailService:
@@ -253,12 +258,12 @@ class EmailService:
         
         # For development, just log the email
         if not self.smtp_user or self.smtp_host == 'localhost':
-            print(f"\n{'='*50}")
-            print(f"EMAIL TO: {to_email}")
-            print(f"SUBJECT: {subject}")
-            print(f"{'='*50}")
-            print(text[:500])
-            print(f"{'='*50}\n")
+            logger.info(
+                "Email (dev mode) TO=%s SUBJECT=%s BODY=%s",
+                to_email,
+                subject,
+                text[:500],
+            )
             return True
         
         try:
@@ -276,7 +281,7 @@ class EmailService:
             
             return True
         except Exception as e:
-            print(f"Error sending email: {e}")
+            logger.error("Error sending email to %s: %s", to_email, e)
             return False
     
     def _send_smtp(self, message: MIMEMultipart, to_email: str):

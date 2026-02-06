@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useIndemnityStore } from '../stores/indemnityStore'
 import { formatTIVShort } from '../utils/tivExcelUtils'
+import { escapeHtml } from '../utils/sanitize'
 import { shouldUseChoropleth, renderChoropleth, removeChoropleth } from '../utils/choroplethUtils'
 import { 
   fetchHistoricalEarthquakes, 
@@ -313,10 +314,10 @@ export default function IndemnityHistorical() {
 
       const popup = new maplibregl.Popup({ offset: 15 }).setHTML(`
         <div style="padding: 8px; max-width: 200px;">
-          <div style="font-weight: bold; margin-bottom: 4px; color: #333;">${name}</div>
+          <div style="font-weight: bold; margin-bottom: 4px; color: #333;">${escapeHtml(name)}</div>
           <div style="font-size: 12px; color: #666;">
-            <div><strong>TIV:</strong> ${formatTIVShort(tiv, currency)}</div>
-            ${count > 1 ? `<div><strong>Locations:</strong> ${count}</div>` : ''}
+            <div><strong>TIV:</strong> ${escapeHtml(formatTIVShort(tiv, currency))}</div>
+            ${count > 1 ? `<div><strong>Locations:</strong> ${escapeHtml(count)}</div>` : ''}
           </div>
         </div>
       `)
@@ -385,13 +386,13 @@ export default function IndemnityHistorical() {
       const popup = new maplibregl.Popup({ offset: 15 }).setHTML(`
         <div style="padding: 12px; max-width: 280px;">
           <div style="font-weight: bold; font-size: 16px; color: #ef4444; margin-bottom: 8px;">
-            🌍 ${eq.name}
+            🌍 ${escapeHtml(eq.name)}
           </div>
           <div style="font-size: 13px; color: #333;">
-            <div style="margin-bottom: 4px;"><strong>Date:</strong> ${new Date(eq.date).toLocaleDateString()}</div>
-            <div style="margin-bottom: 4px;"><strong>Magnitude:</strong> M${eq.magnitude.toFixed(1)}</div>
-            ${eq.depth_km ? `<div style="margin-bottom: 4px;"><strong>Depth:</strong> ${eq.depth_km.toFixed(0)} km</div>` : ''}
-            <div><strong>Est. Damage:</strong> ${formattedDamage}</div>
+            <div style="margin-bottom: 4px;"><strong>Date:</strong> ${escapeHtml(new Date(eq.date).toLocaleDateString())}</div>
+            <div style="margin-bottom: 4px;"><strong>Magnitude:</strong> M${escapeHtml(eq.magnitude.toFixed(1))}</div>
+            ${eq.depth_km ? `<div style="margin-bottom: 4px;"><strong>Depth:</strong> ${escapeHtml(eq.depth_km.toFixed(0))} km</div>` : ''}
+            <div><strong>Est. Damage:</strong> ${escapeHtml(formattedDamage)}</div>
           </div>
         </div>
       `)
@@ -507,15 +508,15 @@ export default function IndemnityHistorical() {
           .setLngLat(coords as [number, number])
           .setHTML(`
             <div style="padding: 12px; max-width: 280px;">
-              <div style="font-weight: bold; font-size: 14px; color: ${props.color}; margin-bottom: 8px;">
-                🌀 ${props.hurricaneName}
+              <div style="font-weight: bold; font-size: 14px; color: ${escapeHtml(props.color)}; margin-bottom: 8px;">
+                🌀 ${escapeHtml(props.hurricaneName)}
               </div>
               <div style="font-size: 12px; color: #333;">
-                <div style="margin-bottom: 3px;"><strong>Time:</strong> ${time}</div>
-                <div style="margin-bottom: 3px;"><strong>Status:</strong> ${props.status}</div>
-                <div style="margin-bottom: 3px;"><strong>Category:</strong> ${props.category !== null ? props.category : 'N/A'}</div>
-                <div style="margin-bottom: 3px;"><strong>Wind:</strong> ${props.wind_mph} mph</div>
-                <div><strong>Pressure:</strong> ${props.pressure_mb} mb</div>
+                <div style="margin-bottom: 3px;"><strong>Time:</strong> ${escapeHtml(time)}</div>
+                <div style="margin-bottom: 3px;"><strong>Status:</strong> ${escapeHtml(props.status)}</div>
+                <div style="margin-bottom: 3px;"><strong>Category:</strong> ${escapeHtml(props.category !== null ? props.category : 'N/A')}</div>
+                <div style="margin-bottom: 3px;"><strong>Wind:</strong> ${escapeHtml(props.wind_mph)} mph</div>
+                <div><strong>Pressure:</strong> ${escapeHtml(props.pressure_mb)} mb</div>
               </div>
             </div>
           `)

@@ -1,12 +1,20 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useEventStore } from '../stores/eventStore'
 
-const WS_URL = import.meta.env.VITE_WS_URL || `ws://localhost:8000/api/notifications/ws`
+const WS_URL = import.meta.env.VITE_WS_URL || `ws://localhost:8001/api/notifications/ws`
 
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<number | null>(null)
-  const { addEarthquake, updateHurricane, addNotification, fetchAllEvents } = useEventStore()
+  // Use refs for store actions to avoid re-creating the connect callback
+  const storeRef = useRef(useEventStore.getState())
+  
+  // Keep the ref up-to-date without triggering re-renders
+  useEffect(() => {
+    return useEventStore.subscribe((state) => {
+      storeRef.current = state
+    })
+  }, [])
   
   const connect = useCallback(() => {
     // Don't connect if already connected
@@ -28,6 +36,7 @@ export function useWebSocket() {
       wsRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
+          const store = storeRef.current
           
           switch (data.type) {
             case 'new_event':
@@ -35,17 +44,17 @@ export function useWebSocket() {
               console.log(`📡 New ${data.event_type} event received`)
               
               if (data.event_type === 'earthquake') {
-                addEarthquake(data.data)
+                store.addEarthquake(data.data)
               } else if (data.event_type === 'hurricane') {
-                updateHurricane(data.data)
+                store.updateHurricane(data.data)
               } else {
                 // For other event types, trigger a refresh
-                fetchAllEvents()
+                store.fetchAllEvents()
               }
               
               // Show notification for significant events
               if (data.data) {
-                addNotification({
+                store.addNotification({
                   type: data.event_type,
                   title: getEventTitle(data.event_type, data.data),
                   message: getEventMessage(data.event_type, data.data),
@@ -54,11 +63,11 @@ export function useWebSocket() {
               break
               
             case 'earthquake':
-              addEarthquake(data.data)
+              store.addEarthquake(data.data)
               break
               
             case 'hurricane':
-              updateHurricane(data.data)
+              store.updateHurricane(data.data)
               break
               
             case 'connected':
@@ -92,7 +101,7 @@ export function useWebSocket() {
     } catch (error) {
       console.error('Failed to connect WebSocket:', error)
     }
-  }, [addEarthquake, updateHurricane, addNotification, fetchAllEvents])
+  }, []) // No store dependencies — uses storeRef
   
   // Send heartbeat every 30 seconds
   useEffect(() => {

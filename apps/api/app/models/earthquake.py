@@ -1,7 +1,7 @@
 """
 Earthquake database model.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import String, Float, DateTime, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from geoalchemy2 import Geometry
@@ -43,7 +43,7 @@ class Earthquake(Base):
     
     # Record timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     
     def __repr__(self) -> str:

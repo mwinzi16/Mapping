@@ -2,17 +2,22 @@
 Real-time event service.
 Polls APIs for new events and broadcasts via WebSocket + sends email alerts.
 """
-import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, Set, List, Any
-import json
+from __future__ import annotations
 
-from app.services.usgs_client import USGSClient
-from app.services.noaa_client import NOAAClient
-from app.services.nasa_firms_client import NASAFirmsClient
-from app.services.nws_client import NWSClient
-from app.services.email_service import email_service
+import asyncio
+import json
+import logging
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Set
+
 from app.routers.notifications import manager as ws_manager
+from app.services.email_service import email_service
+from app.services.nasa_firms_client import NASAFirmsClient
+from app.services.noaa_client import NOAAClient
+from app.services.nws_client import NWSClient
+from app.services.usgs_client import USGSClient
+
+logger = logging.getLogger(__name__)
 
 
 def json_serializer(obj):
@@ -48,7 +53,7 @@ class RealtimeService:
         
         self._running = True
         self._task = asyncio.create_task(self._monitor_loop())
-        print("🔄 Real-time monitoring started")
+        logger.info("Real-time monitoring started")
     
     async def stop(self):
         """Stop the monitoring loop."""
@@ -59,7 +64,7 @@ class RealtimeService:
                 await self._task
             except asyncio.CancelledError:
                 pass
-        print("⏹️ Real-time monitoring stopped")
+        logger.info("Real-time monitoring stopped")
     
     async def _monitor_loop(self):
         """Main monitoring loop - runs continuously."""
@@ -67,7 +72,7 @@ class RealtimeService:
             try:
                 await self._check_all_sources()
             except Exception as e:
-                print(f"Error in monitor loop: {e}")
+                logger.exception("Error in monitor loop")
             
             # Wait 60 seconds before next check
             await asyncio.sleep(60)
@@ -119,7 +124,7 @@ class RealtimeService:
                         "magnitude": props.get("mag"),
                         "place": props.get("place"),
                         "event_time": datetime.fromtimestamp(
-                            props.get("time", 0) / 1000
+                            props.get("time", 0) / 1000, tz=timezone.utc
                         ).isoformat(),
                         "latitude": coords[1],
                         "longitude": coords[0],
@@ -131,7 +136,7 @@ class RealtimeService:
                     if len(self.seen_earthquakes) > 1000:
                         self.seen_earthquakes = set(list(self.seen_earthquakes)[-500:])
         except Exception as e:
-            print(f"Error checking earthquakes: {e}")
+            logger.error("Error checking earthquakes: %s", e)
         
         return new_events
     
@@ -154,7 +159,7 @@ class RealtimeService:
                     }
                     new_events.append(event)
         except Exception as e:
-            print(f"Error checking hurricanes: {e}")
+            logger.error("Error checking hurricanes: %s", e)
         
         return new_events
     
@@ -179,7 +184,7 @@ class RealtimeService:
                     if len(self.seen_wildfires) > 500:
                         self.seen_wildfires = set(list(self.seen_wildfires)[-250:])
         except Exception as e:
-            print(f"Error checking wildfires: {e}")
+            logger.error("Error checking wildfires: %s", e)
         
         return new_events
     
@@ -206,7 +211,7 @@ class RealtimeService:
                     if len(self.seen_severe) > 500:
                         self.seen_severe = set(list(self.seen_severe)[-250:])
         except Exception as e:
-            print(f"Error checking severe weather: {e}")
+            logger.error("Error checking severe weather: %s", e)
         
         return new_events
     
@@ -217,10 +222,10 @@ class RealtimeService:
                 "type": "new_event",
                 "event_type": event.get("type"),
                 "data": event,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await ws_manager.broadcast(json.dumps(message, default=json_serializer))
-            print(f"📡 Broadcast: {event.get('type')} event")
+            logger.info("Broadcast: %s event", event.get("type"))
     
     async def _send_email_alerts(self, events: List[Dict[str, Any]]):
         """Send email alerts to matching subscribers."""
@@ -248,9 +253,9 @@ class RealtimeService:
                         subscriber.get("unsubscribe_token", "")
                     )
                     subscriber["emails_sent_today"] = subscriber.get("emails_sent_today", 0) + 1
-                    print(f"📧 Alert sent to {subscriber['email']}")
+                    logger.info("Alert sent to %s", subscriber["email"])
                 except Exception as e:
-                    print(f"Error sending alert to {subscriber['email']}: {e}")
+                    logger.error("Error sending alert to %s: %s", subscriber["email"], e)
     
     def _event_matches_subscription(self, event: Dict, sub: Dict) -> bool:
         """Check if an event matches a subscriber's preferences."""

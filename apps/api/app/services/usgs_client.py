@@ -2,11 +2,17 @@
 USGS Earthquake API Client.
 https://earthquake.usgs.gov/fdsnws/event/1/
 """
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from __future__ import annotations
+
+import logging
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+
 import httpx
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class USGSClient:
@@ -96,7 +102,7 @@ class USGSClient:
         Fetch recent earthquakes from the last N hours.
         Returns raw GeoJSON response with features.
         """
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(hours=hours)
         
         params = {
@@ -112,7 +118,7 @@ class USGSClient:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
-            print(f"Error fetching recent earthquakes: {e}")
+            logger.error("Error fetching recent earthquakes: %s", e)
             return {"features": []}
 
     def parse_feature(self, feature: Dict[str, Any]) -> Dict[str, Any]:
@@ -128,8 +134,8 @@ class USGSClient:
             "magnitude": props.get("mag"),
             "magnitude_type": props.get("magType"),
             "place": props.get("place"),
-            "event_time": datetime.fromtimestamp(props.get("time", 0) / 1000),
-            "updated_at": datetime.fromtimestamp(props.get("updated", 0) / 1000),
+            "event_time": datetime.fromtimestamp(props.get("time", 0) / 1000, tz=timezone.utc),
+            "updated_at": datetime.fromtimestamp(props.get("updated", 0) / 1000, tz=timezone.utc),
             "longitude": coordinates[0],
             "latitude": coordinates[1],
             "depth_km": coordinates[2],

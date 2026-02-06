@@ -3,8 +3,11 @@ API endpoints for indemnity insurance historical event data.
 Provides access to significant historical hurricanes and earthquakes
 for TIV impact analysis.
 """
-from typing import List, Optional, Literal
-from fastapi import APIRouter, Query, HTTPException
+from __future__ import annotations
+
+from typing import List, Literal, Optional
+
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from app.services.parametric_service import get_parametric_service

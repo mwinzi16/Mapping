@@ -1,9 +1,12 @@
 """
 Earthquake business logic service.
 """
-from datetime import datetime, timedelta
-from typing import Optional, List
-from sqlalchemy import select, func
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from typing import List, Optional
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.earthquake import Earthquake
@@ -114,7 +117,7 @@ class EarthquakeService:
         min_magnitude: float = 2.5
     ) -> List[Earthquake]:
         """Get recent earthquakes."""
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         query = (
             select(Earthquake)
             .where(Earthquake.event_time >= cutoff)

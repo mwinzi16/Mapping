@@ -3,7 +3,7 @@
  * Fetches significant earthquakes and hurricanes for TIV impact analysis.
  */
 
-const API_BASE = 'http://localhost:8001/api/indemnity'
+const API_BASE = `${import.meta.env.VITE_API_URL || '/api'}/indemnity`
 
 // =============================================================================
 // TYPES

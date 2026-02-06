@@ -4,11 +4,17 @@ https://www.weather.gov/documentation/services-web-api
 
 For severe weather: tornadoes, hail, flooding, severe thunderstorms
 """
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from __future__ import annotations
+
+import logging
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+
 import httpx
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class NWSClient:
@@ -74,7 +80,7 @@ class NWSClient:
             
             return alerts
         except httpx.HTTPError as e:
-            print(f"Error fetching NWS alerts: {e}")
+            logger.error("Error fetching NWS alerts: %s", e)
             return []
     
     async def fetch_tornado_warnings(self) -> List[Dict[str, Any]]:
@@ -106,7 +112,7 @@ class NWSClient:
         Returns dict with keys: tornadoes, hail, wind
         """
         if date is None:
-            date = datetime.utcnow()
+            date = datetime.now(timezone.utc)
         
         # SPC uses YYMMDD format
         date_str = date.strftime("%y%m%d")
@@ -232,7 +238,7 @@ class NWSClient:
                     "county": parts[3] if len(parts) > 3 else "",
                     "state": parts[4] if len(parts) > 4 else "",
                     "source": "SPC",
-                    "event_time": datetime.utcnow(),  # Simplified
+                    "event_time": datetime.now(timezone.utc),  # Simplified
                 }
                 
                 # Add type-specific data

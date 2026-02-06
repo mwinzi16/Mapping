@@ -1,9 +1,12 @@
 """
 Wildfire API endpoints.
 """
-from datetime import datetime
+from __future__ import annotations
+
+from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Query
+
+from fastapi import APIRouter, HTTPException, Query
 
 from app.services.nasa_firms_client import NASAFirmsClient
 
@@ -51,7 +54,7 @@ async def get_active_wildfires(
             "type": "FeatureCollection",
             "features": features,
             "metadata": {
-                "generated": datetime.utcnow().isoformat(),
+                "generated": datetime.now(timezone.utc).isoformat(),
                 "count": len(features),
                 "source": "NASA FIRMS",
                 "region": region,

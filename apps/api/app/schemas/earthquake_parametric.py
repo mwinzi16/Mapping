@@ -1,10 +1,13 @@
 """
 Pydantic schemas for earthquake parametric insurance analysis.
 """
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional, List, Dict
-from pydantic import BaseModel, Field
 from enum import Enum
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class EarthquakeDatasetType(str, Enum):

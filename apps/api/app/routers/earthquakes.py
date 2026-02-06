@@ -1,13 +1,16 @@
 """
 Earthquake API endpoints.
 """
-from datetime import datetime, timedelta
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.schemas.earthquake import EarthquakeResponse, EarthquakeList
+from app.schemas.earthquake import EarthquakeList, EarthquakeResponse
 from app.services.earthquake_service import EarthquakeService
 from app.services.usgs_client import USGSClient
 
@@ -48,27 +51,30 @@ async def get_recent_earthquakes(
     Useful for real-time updates without database.
     """
     client = USGSClient()
-    end_time = datetime.utcnow()
-    start_time = end_time - timedelta(hours=hours)
-    
-    earthquakes = await client.fetch_earthquakes(
-        start_time=start_time,
-        end_time=end_time,
-        min_magnitude=min_magnitude,
-    )
-    
-    return {
-        "type": "FeatureCollection",
-        "features": earthquakes,
-        "metadata": {
-            "generated": datetime.utcnow().isoformat(),
-            "count": len(earthquakes),
-            "parameters": {
-                "hours": hours,
-                "min_magnitude": min_magnitude,
-            }
+    try:
+        end_time = datetime.now(timezone.utc)
+        start_time = end_time - timedelta(hours=hours)
+
+        earthquakes = await client.fetch_earthquakes(
+            start_time=start_time,
+            end_time=end_time,
+            min_magnitude=min_magnitude,
+        )
+
+        return {
+            "type": "FeatureCollection",
+            "features": earthquakes,
+            "metadata": {
+                "generated": datetime.now(timezone.utc).isoformat(),
+                "count": len(earthquakes),
+                "parameters": {
+                    "hours": hours,
+                    "min_magnitude": min_magnitude,
+                },
+            },
         }
-    }
+    finally:
+        await client.close()
 
 
 @router.get("/significant")
@@ -79,23 +85,26 @@ async def get_significant_earthquakes(
     Get significant earthquakes (M4.5+) from the past N days.
     """
     client = USGSClient()
-    end_time = datetime.utcnow()
-    start_time = end_time - timedelta(days=days)
-    
-    earthquakes = await client.fetch_earthquakes(
-        start_time=start_time,
-        end_time=end_time,
-        min_magnitude=4.5,
-    )
-    
-    return {
-        "type": "FeatureCollection",
-        "features": earthquakes,
-        "metadata": {
-            "generated": datetime.utcnow().isoformat(),
-            "count": len(earthquakes),
+    try:
+        end_time = datetime.now(timezone.utc)
+        start_time = end_time - timedelta(days=days)
+
+        earthquakes = await client.fetch_earthquakes(
+            start_time=start_time,
+            end_time=end_time,
+            min_magnitude=4.5,
+        )
+
+        return {
+            "type": "FeatureCollection",
+            "features": earthquakes,
+            "metadata": {
+                "generated": datetime.now(timezone.utc).isoformat(),
+                "count": len(earthquakes),
+            },
         }
-    }
+    finally:
+        await client.close()
 
 
 @router.get("/{earthquake_id}", response_model=EarthquakeResponse)
@@ -108,10 +117,10 @@ async def get_earthquake(
     """
     service = EarthquakeService(db)
     earthquake = await service.get_by_id(earthquake_id)
-    
+
     if not earthquake:
         raise HTTPException(status_code=404, detail="Earthquake not found")
-    
+
     return EarthquakeResponse.from_orm_with_geometry(earthquake)
 
 
@@ -121,9 +130,12 @@ async def get_earthquake_by_usgs_id(usgs_id: str):
     Get earthquake details directly from USGS by their ID.
     """
     client = USGSClient()
-    earthquake = await client.fetch_earthquake_by_id(usgs_id)
-    
-    if not earthquake:
-        raise HTTPException(status_code=404, detail="Earthquake not found")
-    
-    return earthquake
+    try:
+        earthquake = await client.fetch_earthquake_by_id(usgs_id)
+
+        if not earthquake:
+            raise HTTPException(status_code=404, detail="Earthquake not found")
+
+        return earthquake
+    finally:
+        await client.close()

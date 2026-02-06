@@ -2,10 +2,12 @@
 Service for parametric insurance analysis.
 Handles box intersection calculations and statistical analysis.
 """
-from datetime import datetime
-from typing import List, Dict, Any, Optional, Tuple
-from collections import defaultdict
+from __future__ import annotations
+
 import math
+from collections import defaultdict
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 from app.schemas.parametric import (
     BoundingBox,
@@ -16,6 +18,7 @@ from app.schemas.parametric import (
 )
 from app.services.ibtracs_client import get_ibtracs_client
 from app.services.hurdat2_client import get_hurdat2_client
+from app.utils.weather import wind_to_category
 
 
 # Dataset metadata
@@ -107,7 +110,7 @@ class ParametricAnalysisService:
             
             if intersection:
                 entry_point, exit_point, max_intensity, max_pressure = intersection
-                category_at_crossing = self._wind_to_category(max_intensity)
+                category_at_crossing = wind_to_category(max_intensity)
                 
                 intersecting.append({
                     "hurricane": hurricane,
@@ -332,33 +335,6 @@ class ParametricAnalysisService:
             trigger_criteria=box.trigger,
             dataset=dataset.value,
         )
-        intensities = [
-            intersection.get("max_intensity_in_box", 0)
-            for intersection in intersections
-        ]
-        
-        avg_intensity = sum(intensities) / len(intensities) if intensities else 0
-        max_intensity = max(intensities) if intensities else 0
-        
-        # Annual frequency
-        annual_frequency = total_hurricanes / years_analyzed if years_analyzed > 0 else 0
-        
-        # Trigger probability (probability of at least one event per year)
-        # Using Poisson distribution: P(X >= 1) = 1 - P(X = 0) = 1 - e^(-λ)
-        trigger_probability = 1 - math.exp(-annual_frequency) if annual_frequency > 0 else 0
-        
-        return BoxStatistics(
-            box_id=box.id,
-            box_name=box.name,
-            total_hurricanes=total_hurricanes,
-            years_analyzed=years_analyzed,
-            annual_frequency=annual_frequency,
-            category_distribution=dict(category_dist),
-            monthly_distribution=dict(monthly_dist),
-            average_intensity_knots=avg_intensity,
-            max_intensity_knots=max_intensity,
-            trigger_probability=trigger_probability,
-        )
     
     async def analyze_box(
         self,
@@ -424,22 +400,6 @@ class ParametricAnalysisService:
         
         return results
     
-    @staticmethod
-    def _wind_to_category(wind_knots: int) -> int:
-        """Convert wind speed in knots to Saffir-Simpson category."""
-        if wind_knots >= 137:
-            return 5
-        elif wind_knots >= 113:
-            return 4
-        elif wind_knots >= 96:
-            return 3
-        elif wind_knots >= 83:
-            return 2
-        elif wind_knots >= 64:
-            return 1
-        else:
-            return 0
-
 
 # Singleton instance
 _service: Optional[ParametricAnalysisService] = None

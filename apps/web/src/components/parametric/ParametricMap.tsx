@@ -201,7 +201,7 @@ export default function ParametricMap() {
   }, [boxes.length, addBoxes])
   
   // Generate GeoJSON for hurricane tracks with intensity-based segments
-  const hurricaneTracksGeoJSON = useCallback(() => {
+  const hurricaneTracksGeoJSON = useMemo(() => {
     const features: GeoJSON.Feature[] = []
     
     hurricanes.forEach((hurricane) => {
@@ -259,7 +259,7 @@ export default function ParametricMap() {
   }, [hurricanes])
   
   // Generate GeoJSON for bounding boxes
-  const boxesGeoJSON = useCallback(() => {
+  const boxesGeoJSON = useMemo(() => {
     const allBoxes = [...boxes]
     
     // Add drawing preview
@@ -454,7 +454,7 @@ export default function ParametricMap() {
       )}
       
       {/* Hurricane tracks layer - intensity colored segments */}
-      <Source id="hurricane-tracks" type="geojson" data={hurricaneTracksGeoJSON()}>
+      <Source id="hurricane-tracks" type="geojson" data={hurricaneTracksGeoJSON}>
         {/* Track line segments colored by category */}
         <Layer
           id="hurricane-tracks-line"
@@ -502,7 +502,7 @@ export default function ParametricMap() {
       </Source>
       
       {/* Bounding boxes layer */}
-      <Source id="boxes" type="geojson" data={boxesGeoJSON()}>
+      <Source id="boxes" type="geojson" data={boxesGeoJSON}>
         <Layer
           id="boxes-fill"
           type="fill"

@@ -7,7 +7,7 @@ import {
   EarthquakeDatasetInfo,
 } from '../types/parametric'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8001'
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 export const earthquakeParametricApi = {
   /**
@@ -15,7 +15,7 @@ export const earthquakeParametricApi = {
    */
   async getAvailableDatasets(): Promise<EarthquakeDatasetInfo[]> {
     const response = await axios.get<EarthquakeDatasetInfo[]>(
-      `${API_BASE}/api/earthquake-parametric/datasets`
+      `${API_BASE}/earthquake-parametric/datasets`
     )
     return response.data
   },
@@ -33,7 +33,7 @@ export const earthquakeParametricApi = {
     params.set('dataset', filters.dataset)
 
     const response = await axios.get<HistoricalEarthquake[]>(
-      `${API_BASE}/api/earthquake-parametric/earthquakes/historical?${params}`
+      `${API_BASE}/earthquake-parametric/earthquakes/historical?${params}`
     )
     return response.data
   },
@@ -46,7 +46,7 @@ export const earthquakeParametricApi = {
     filters: EarthquakeAnalysisFilters
   ): Promise<HistoricalEarthquake[]> {
     const response = await axios.post<HistoricalEarthquake[]>(
-      `${API_BASE}/api/earthquake-parametric/analysis/earthquakes`,
+      `${API_BASE}/earthquake-parametric/analysis/earthquakes`,
       {
         box,
         start_year: filters.startYear,
@@ -66,7 +66,7 @@ export const earthquakeParametricApi = {
     filters: EarthquakeAnalysisFilters
   ): Promise<EarthquakeBoxStatistics> {
     const response = await axios.post<EarthquakeBoxStatistics>(
-      `${API_BASE}/api/earthquake-parametric/analysis/statistics`,
+      `${API_BASE}/earthquake-parametric/analysis/statistics`,
       {
         box,
         start_year: filters.startYear,
@@ -86,7 +86,7 @@ export const earthquakeParametricApi = {
     filters: EarthquakeAnalysisFilters
   ): Promise<Record<string, EarthquakeBoxStatistics>> {
     const response = await axios.post<Record<string, EarthquakeBoxStatistics>>(
-      `${API_BASE}/api/earthquake-parametric/analysis/bulk-statistics`,
+      `${API_BASE}/earthquake-parametric/analysis/bulk-statistics`,
       {
         boxes,
         start_year: filters.startYear,

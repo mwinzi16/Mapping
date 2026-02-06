@@ -2,11 +2,17 @@
 NASA FIRMS (Fire Information for Resource Management System) API Client.
 https://firms.modaps.eosdis.nasa.gov/api/
 """
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from __future__ import annotations
+
+import logging
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+
 import httpx
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class NASAFirmsClient:
@@ -49,7 +55,7 @@ class NASAFirmsClient:
             fires = self._parse_csv_response(response.text, source)
             return fires
         except httpx.HTTPError as e:
-            print(f"Error fetching FIRMS data: {e}")
+            logger.error("Error fetching FIRMS data: %s", e)
             return await self._fetch_sample_fires()
     
     async def fetch_global_fires(
@@ -127,7 +133,7 @@ class NASAFirmsClient:
                 "confidence": self._parse_confidence(props.get('confidence', '')),
                 "satellite": props.get('satellite', 'VIIRS'),
                 "source": "NASA FIRMS",
-                "detected_at": datetime.utcnow(),  # Simplified
+                "detected_at": datetime.now(timezone.utc),  # Simplified
             })
         
         return fires
@@ -147,7 +153,7 @@ class NASAFirmsClient:
             dt_str = f"{date_str} {time_str[:2]}:{time_str[2:]}"
             return datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
         except ValueError:
-            return datetime.utcnow()
+            return datetime.now(timezone.utc)
     
     async def _fetch_sample_fires(self) -> List[Dict[str, Any]]:
         """Return sample fire data for testing when API is unavailable."""

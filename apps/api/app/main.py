@@ -1,25 +1,41 @@
 """
 Catastrophe Mapping API - Main Application Entry Point
 """
+from __future__ import annotations
+
+import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import earthquakes, hurricanes, notifications, wildfires, severe_weather, subscriptions, parametric, earthquake_parametric, indemnity
 from app.core.config import settings
+from app.routers import (
+    earthquake_parametric,
+    earthquakes,
+    hurricanes,
+    indemnity,
+    notifications,
+    parametric,
+    severe_weather,
+    subscriptions,
+    wildfires,
+)
 from app.services.realtime_service import realtime_service
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
     # Startup: Initialize connections and start real-time monitoring
-    print("🚀 Starting Catastrophe Mapping API...")
+    logger.info("Starting Catastrophe Mapping API...")
     await realtime_service.start()
     yield
     # Shutdown: Clean up
     await realtime_service.stop()
-    print("👋 Shutting down...")
+    logger.info("Shutting down...")
 
 
 app = FastAPI(
@@ -62,12 +78,45 @@ async def root():
 
 @app.get("/api/health")
 async def health_check():
-    """Detailed health check."""
-    return {
-        "status": "healthy",
-        "database": "connected",
-        "external_apis": {
-            "usgs": "available",
-            "noaa": "available",
-        },
-    }
+    """Detailed health check — verifies DB and external API reachability."""
+    import httpx
+    from sqlalchemy import text
+
+    from app.core.database import async_session_maker
+
+    health: dict = {"status": "healthy", "database": "unavailable", "external_apis": {}}
+
+    # Check database
+    try:
+        async with async_session_maker() as session:
+            await session.execute(text("SELECT 1"))
+        health["database"] = "connected"
+    except Exception as exc:
+        health["database"] = f"error: {exc}"
+        health["status"] = "degraded"
+
+    # Check USGS
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                "https://earthquake.usgs.gov/fdsnws/event/1/version"
+            )
+            health["external_apis"]["usgs"] = (
+                "available" if resp.status_code == 200 else f"status {resp.status_code}"
+            )
+    except Exception:
+        health["external_apis"]["usgs"] = "unavailable"
+        health["status"] = "degraded"
+
+    # Check NOAA
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.head("https://api.weather.gov")
+            health["external_apis"]["noaa"] = (
+                "available" if resp.status_code < 400 else f"status {resp.status_code}"
+            )
+    except Exception:
+        health["external_apis"]["noaa"] = "unavailable"
+        health["status"] = "degraded"
+
+    return health

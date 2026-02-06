@@ -2,10 +2,12 @@
 Service for earthquake parametric insurance analysis.
 Handles box intersection calculations and statistical analysis.
 """
-from datetime import datetime
-from typing import List, Dict, Any, Optional
-from collections import defaultdict
+from __future__ import annotations
+
 import math
+from collections import defaultdict
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from app.schemas.earthquake_parametric import (
     EarthquakeBoundingBox,

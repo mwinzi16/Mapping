@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { useIndemnityStore } from '../stores/indemnityStore'
 import { useEventStore } from '../stores/eventStore'
 import { formatTIVShort } from '../utils/tivExcelUtils'
+import { escapeHtml } from '../utils/sanitize'
 import { shouldUseChoropleth, renderChoropleth, removeChoropleth } from '../utils/choroplethUtils'
 import TIVDataPanel from '../components/indemnity/TIVDataPanel'
 import IndemnityFilterSection from '../components/indemnity/IndemnityFilterSection'
@@ -201,10 +202,10 @@ export default function IndemnityLiveCat() {
 
       const popup = new maplibregl.Popup({ offset: 15 }).setHTML(`
         <div style="padding: 8px; max-width: 200px;">
-          <div style="font-weight: bold; margin-bottom: 4px; color: #333;">${name}</div>
+          <div style="font-weight: bold; margin-bottom: 4px; color: #333;">${escapeHtml(name)}</div>
           <div style="font-size: 12px; color: #666;">
-            <div><strong>TIV:</strong> ${formatTIVShort(tiv, currency)}</div>
-            ${count > 1 ? `<div><strong>Locations:</strong> ${count}</div>` : ''}
+            <div><strong>TIV:</strong> ${escapeHtml(formatTIVShort(tiv, currency))}</div>
+            ${count > 1 ? `<div><strong>Locations:</strong> ${escapeHtml(count)}</div>` : ''}
           </div>
         </div>
       `)
@@ -243,9 +244,9 @@ export default function IndemnityLiveCat() {
         <div style="padding: 8px;">
           <div style="font-weight: bold; color: #ef4444;">🌍 Earthquake</div>
           <div style="font-size: 12px; color: #666;">
-            <div><strong>Magnitude:</strong> ${eq.magnitude}</div>
-            <div><strong>Location:</strong> ${eq.place}</div>
-            <div><strong>Depth:</strong> ${eq.depth_km} km</div>
+            <div><strong>Magnitude:</strong> ${escapeHtml(eq.magnitude)}</div>
+            <div><strong>Location:</strong> ${escapeHtml(eq.place)}</div>
+            <div><strong>Depth:</strong> ${escapeHtml(eq.depth_km)} km</div>
           </div>
         </div>
       `)
@@ -271,11 +272,11 @@ export default function IndemnityLiveCat() {
 
       const popup = new maplibregl.Popup({ offset: 15 }).setHTML(`
         <div style="padding: 8px;">
-          <div style="font-weight: bold; color: #3b82f6;">🌀 ${h.name}</div>
+          <div style="font-weight: bold; color: #3b82f6;">🌀 ${escapeHtml(h.name)}</div>
           <div style="font-size: 12px; color: #666;">
-            <div><strong>Category:</strong> ${h.category || 'N/A'}</div>
-            <div><strong>Wind Speed:</strong> ${h.max_wind_mph} mph</div>
-            <div><strong>Pressure:</strong> ${h.min_pressure_mb || 'N/A'} mb</div>
+            <div><strong>Category:</strong> ${escapeHtml(h.category || 'N/A')}</div>
+            <div><strong>Wind Speed:</strong> ${escapeHtml(h.max_wind_mph)} mph</div>
+            <div><strong>Pressure:</strong> ${escapeHtml(h.min_pressure_mb || 'N/A')} mb</div>
           </div>
         </div>
       `)
@@ -302,8 +303,8 @@ export default function IndemnityLiveCat() {
         <div style="padding: 8px;">
           <div style="font-weight: bold; color: #f97316;">🔥 Wildfire</div>
           <div style="font-size: 12px; color: #666;">
-            <div><strong>Confidence:</strong> ${fire.confidence || 'N/A'}%</div>
-            <div><strong>FRP:</strong> ${fire.frp || 'N/A'} MW</div>
+            <div><strong>Confidence:</strong> ${escapeHtml(fire.confidence || 'N/A')}%</div>
+            <div><strong>FRP:</strong> ${escapeHtml(fire.frp || 'N/A')} MW</div>
           </div>
         </div>
       `)
@@ -328,9 +329,9 @@ export default function IndemnityLiveCat() {
 
       const popup = new maplibregl.Popup({ offset: 10 }).setHTML(`
         <div style="padding: 8px;">
-          <div style="font-weight: bold; color: #eab308;">⚠️ ${sw.event_type}</div>
+          <div style="font-weight: bold; color: #eab308;">⚠️ ${escapeHtml(sw.event_type)}</div>
           <div style="font-size: 12px; color: #666;">
-            <div><strong>Severity:</strong> ${sw.severity || 'N/A'}</div>
+            <div><strong>Severity:</strong> ${escapeHtml(sw.severity || 'N/A')}</div>
           </div>
         </div>
       `)

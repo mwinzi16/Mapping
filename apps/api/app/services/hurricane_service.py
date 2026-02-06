@@ -1,8 +1,11 @@
 """
 Hurricane business logic service.
 """
-from typing import Optional, List, Dict, Any
-from sqlalchemy import select, func
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.hurricane import Hurricane

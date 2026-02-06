@@ -213,7 +213,7 @@ export default function EarthquakeMap() {
   const displayBoxes = stressTestConfig.enabled ? getExtendedBoxes() : boxes
 
   // Generate GeoJSON for earthquake points
-  const earthquakePointsGeoJSON = useCallback(() => {
+  const earthquakePointsGeoJSON = useMemo(() => {
     return {
       type: 'FeatureCollection' as const,
       features: earthquakes.map((eq) => ({
@@ -233,7 +233,7 @@ export default function EarthquakeMap() {
   }, [earthquakes])
 
   // Generate GeoJSON for bounding boxes
-  const boxesGeoJSON = useCallback(() => {
+  const boxesGeoJSON = useMemo(() => {
     const allBoxes = [...displayBoxes]
 
     // Add drawing preview
@@ -295,7 +295,7 @@ export default function EarthquakeMap() {
   }, [displayBoxes, selectedBoxId, isDrawing, drawStart, drawCurrent, statistics])
 
   // Generate GeoJSON for original box boundaries when stress testing is enabled
-  const originalBoundsGeoJSON = useCallback(() => {
+  const originalBoundsGeoJSON = useMemo(() => {
     if (!stressTestConfig.enabled) return { type: 'FeatureCollection' as const, features: [] }
 
     const extendedBoxes = displayBoxes.filter((box) => {
@@ -489,7 +489,7 @@ export default function EarthquakeMap() {
       )}
 
       {/* Earthquake points layer */}
-      <Source id="earthquake-points" type="geojson" data={earthquakePointsGeoJSON()}>
+      <Source id="earthquake-points" type="geojson" data={earthquakePointsGeoJSON}>
         <Layer
           id="earthquake-circles"
           type="circle"
@@ -535,7 +535,7 @@ export default function EarthquakeMap() {
       </Source>
 
       {/* Bounding boxes layer */}
-      <Source id="eq-boxes" type="geojson" data={boxesGeoJSON()}>
+      <Source id="eq-boxes" type="geojson" data={boxesGeoJSON}>
         {/* Box fill */}
         <Layer
           id="eq-boxes-fill"
@@ -589,7 +589,7 @@ export default function EarthquakeMap() {
 
       {/* Original box boundaries layer (shown when stress testing is enabled) */}
       {stressTestConfig.enabled && (
-        <Source id="eq-original-bounds" type="geojson" data={originalBoundsGeoJSON()}>
+        <Source id="eq-original-bounds" type="geojson" data={originalBoundsGeoJSON}>
           {/* Only show outline, no fill to avoid click interference */}
           <Layer
             id="eq-original-bounds-outline"

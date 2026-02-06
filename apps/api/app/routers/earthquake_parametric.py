@@ -1,8 +1,11 @@
 """
 API endpoints for earthquake parametric insurance analysis.
 """
-from typing import List, Optional, Dict
-from fastapi import APIRouter, Query, HTTPException
+from __future__ import annotations
+
+from typing import Dict, List, Optional
+
+from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.earthquake_parametric import (
     EarthquakeBoxStatistics,

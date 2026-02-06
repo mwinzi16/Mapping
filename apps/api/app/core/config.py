@@ -1,8 +1,11 @@
 """
 Application configuration using Pydantic Settings.
 """
-from pydantic_settings import BaseSettings
+from __future__ import annotations
+
 from typing import List, Optional
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -10,7 +13,7 @@ class Settings(BaseSettings):
     
     # Application
     APP_NAME: str = "Catastrophe Mapping API"
-    DEBUG: bool = True
+    DEBUG: bool = False
     
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/catastrophe_db"
@@ -37,9 +40,7 @@ class Settings(BaseSettings):
     # Mapbox (for geocoding if needed)
     MAPBOX_TOKEN: str = ""
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
 settings = Settings()

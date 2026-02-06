@@ -1,12 +1,15 @@
 """
 Hurricane API endpoints.
 """
+from __future__ import annotations
+
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.schemas.hurricane import HurricaneResponse, HurricaneList
+from app.schemas.hurricane import HurricaneList, HurricaneResponse
 from app.services.hurricane_service import HurricaneService
 from app.services.noaa_client import NOAAClient
 
@@ -41,13 +44,16 @@ async def get_active_storms():
     Get currently active tropical storms and hurricanes from NOAA.
     """
     client = NOAAClient()
-    storms = await client.fetch_active_storms()
-    
-    return {
-        "storms": storms,
-        "count": len(storms),
-        "source": "NOAA National Hurricane Center",
-    }
+    try:
+        storms = await client.fetch_active_storms()
+
+        return {
+            "storms": storms,
+            "count": len(storms),
+            "source": "NOAA National Hurricane Center",
+        }
+    finally:
+        await client.close()
 
 
 @router.get("/season/{year}")
@@ -129,6 +135,8 @@ async def get_hurricane_forecast(
     
     # Fetch forecast from NOAA
     client = NOAAClient()
-    forecast = await client.fetch_forecast(hurricane.storm_id)
-    
-    return forecast
+    try:
+        forecast = await client.fetch_forecast(hurricane.storm_id)
+        return forecast
+    finally:
+        await client.close()

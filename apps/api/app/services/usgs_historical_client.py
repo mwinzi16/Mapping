@@ -3,9 +3,15 @@ Client for fetching historical earthquake data from USGS.
 Uses the USGS FDSNWS Event Query API for historical data.
 https://earthquake.usgs.gov/fdsnws/event/1/
 """
-from datetime import datetime
-from typing import Optional, List, Dict, Any, Tuple
+from __future__ import annotations
+
+import logging
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
+
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 class USGSHistoricalClient:
@@ -88,14 +94,14 @@ class USGSHistoricalClient:
                         
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 503:
-                    print(f"⚠️ USGS temporarily unavailable for year {year}")
+                    logger.warning("USGS temporarily unavailable for year %d", year)
                     raise Exception("USGS data source temporarily unavailable. Please try again later.")
-                print(f"Error fetching year {year}: {e}")
+                logger.error("Error fetching year %d: %s", year, e)
             except httpx.TimeoutException:
-                print(f"⚠️ USGS request timed out for year {year}")
+                logger.warning("USGS request timed out for year %d", year)
                 raise Exception("USGS request timed out. The server may be slow or unavailable.")
             except Exception as e:
-                print(f"Error fetching year {year}: {e}")
+                logger.error("Unexpected error fetching year %d: %s", year, e)
         
         # Cache the results
         self._cache[cache_key] = all_earthquakes
@@ -147,7 +153,7 @@ class USGSHistoricalClient:
                         all_earthquakes.append(eq)
                         
             except Exception as e:
-                print(f"Error fetching year {year}: {e}")
+                logger.error("Error fetching year %d in box query: %s", year, e)
         
         return all_earthquakes
     
@@ -163,7 +169,7 @@ class USGSHistoricalClient:
             if time_ms is None:
                 return None
             
-            event_time = datetime.fromtimestamp(time_ms / 1000)
+            event_time = datetime.fromtimestamp(time_ms / 1000, tz=timezone.utc)
             
             return {
                 "event_id": feature.get("id", ""),
@@ -179,7 +185,7 @@ class USGSHistoricalClient:
                 "url": props.get("url"),
             }
         except Exception as e:
-            print(f"Error parsing earthquake: {e}")
+            logger.error("Error parsing earthquake: %s", e)
             return None
     
     async def get_year_range(self) -> Tuple[int, int]:

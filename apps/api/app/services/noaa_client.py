@@ -2,10 +2,16 @@
 NOAA National Hurricane Center API Client.
 https://www.nhc.noaa.gov/
 """
-from typing import Optional, List, Dict, Any
+from __future__ import annotations
+
+import logging
+from typing import Any, Dict, List, Optional
+
 import httpx
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class NOAAClient:
@@ -37,7 +43,7 @@ class NOAAClient:
             
             return storms
         except httpx.HTTPError as e:
-            print(f"Error fetching NOAA data: {e}")
+            logger.error("Error fetching NOAA data: %s", e)
             return []
     
     def parse_storm(self, storm_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:

@@ -3,12 +3,20 @@ Client for fetching historical hurricane data from NOAA IBTrACS.
 International Best Track Archive for Climate Stewardship.
 https://www.ncei.noaa.gov/products/international-best-track-archive
 """
-from datetime import datetime
-from typing import Optional, List, Dict, Any, Tuple
+from __future__ import annotations
+
 import csv
 import io
-import httpx
+import logging
+from datetime import datetime
 from functools import lru_cache
+from typing import Any, Dict, List, Optional, Tuple
+
+import httpx
+
+from app.utils.weather import wind_to_category
+
+logger = logging.getLogger(__name__)
 
 
 class IBTrACSClient:
@@ -86,15 +94,15 @@ class IBTrACSClient:
             return self._parse_ibtracs_csv(response.text)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 503:
-                print(f"⚠️ IBTrACS data source temporarily unavailable (503). NOAA NCEI server may be down.")
+                logger.warning("IBTrACS data source temporarily unavailable (503). NOAA NCEI server may be down.")
                 raise Exception("IBTrACS data source temporarily unavailable. The NOAA NCEI server is currently down. Please try HURDAT2 datasets or try again later.")
-            print(f"Error fetching IBTrACS data: {e}")
+            logger.error("Error fetching IBTrACS data (HTTP %d): %s", e.response.status_code, e)
             raise Exception(f"Failed to fetch IBTrACS data: {e}")
         except httpx.TimeoutException as e:
-            print(f"⚠️ IBTrACS request timed out: {e}")
+            logger.warning("IBTrACS request timed out: %s", e)
             raise Exception("IBTrACS request timed out. The NOAA server may be slow or unavailable.")
         except httpx.HTTPError as e:
-            print(f"Error fetching IBTrACS data: {e}")
+            logger.error("Error fetching IBTrACS data: %s", e)
             raise Exception(f"Failed to fetch IBTrACS data: {e}")
     
     def _parse_ibtracs_csv(self, csv_text: str) -> List[Dict[str, Any]]:
@@ -148,7 +156,7 @@ class IBTrACSClient:
                     pressure_mb = None
                 
                 # Calculate Saffir-Simpson category from wind speed
-                category = self._wind_to_category(wind_knots)
+                category = wind_to_category(wind_knots)
                 
                 # Get storm status
                 status = row.get("USA_STATUS", "") or row.get("NATURE", "")
@@ -206,22 +214,6 @@ class IBTrACSClient:
                 continue
         
         return list(hurricanes.values())
-    
-    @staticmethod
-    def _wind_to_category(wind_knots: int) -> int:
-        """Convert wind speed in knots to Saffir-Simpson category."""
-        if wind_knots >= 137:
-            return 5
-        elif wind_knots >= 113:
-            return 4
-        elif wind_knots >= 96:
-            return 3
-        elif wind_knots >= 83:
-            return 2
-        elif wind_knots >= 64:
-            return 1
-        else:
-            return 0  # Tropical Storm or lower
     
     def get_available_basins(self) -> List[str]:
         """Return list of available ocean basins."""
