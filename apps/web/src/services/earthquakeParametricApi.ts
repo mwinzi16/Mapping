@@ -7,17 +7,17 @@ import {
   EarthquakeDatasetInfo,
 } from '../types/parametric'
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api'
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
 export const earthquakeParametricApi = {
   /**
    * Get available earthquake datasets.
    */
   async getAvailableDatasets(): Promise<EarthquakeDatasetInfo[]> {
-    const response = await axios.get<EarthquakeDatasetInfo[]>(
+    const response = await axios.get(
       `${API_BASE}/earthquake-parametric/datasets`
     )
-    return response.data
+    return response.data.data
   },
 
   /**
@@ -32,10 +32,10 @@ export const earthquakeParametricApi = {
     params.set('min_magnitude', filters.minMagnitude.toString())
     params.set('dataset', filters.dataset)
 
-    const response = await axios.get<HistoricalEarthquake[]>(
+    const response = await axios.get(
       `${API_BASE}/earthquake-parametric/earthquakes/historical?${params}`
     )
-    return response.data
+    return response.data.data
   },
 
   /**
@@ -45,7 +45,7 @@ export const earthquakeParametricApi = {
     box: EarthquakeBoundingBox,
     filters: EarthquakeAnalysisFilters
   ): Promise<HistoricalEarthquake[]> {
-    const response = await axios.post<HistoricalEarthquake[]>(
+    const response = await axios.post(
       `${API_BASE}/earthquake-parametric/analysis/earthquakes`,
       {
         box,
@@ -55,7 +55,7 @@ export const earthquakeParametricApi = {
         dataset: filters.dataset,
       }
     )
-    return response.data
+    return response.data.data
   },
 
   /**
@@ -65,7 +65,7 @@ export const earthquakeParametricApi = {
     box: EarthquakeBoundingBox,
     filters: EarthquakeAnalysisFilters
   ): Promise<EarthquakeBoxStatistics> {
-    const response = await axios.post<EarthquakeBoxStatistics>(
+    const response = await axios.post(
       `${API_BASE}/earthquake-parametric/analysis/statistics`,
       {
         box,
@@ -75,7 +75,7 @@ export const earthquakeParametricApi = {
         dataset: filters.dataset,
       }
     )
-    return response.data
+    return response.data.data
   },
 
   /**
@@ -85,7 +85,7 @@ export const earthquakeParametricApi = {
     boxes: EarthquakeBoundingBox[],
     filters: EarthquakeAnalysisFilters
   ): Promise<Record<string, EarthquakeBoxStatistics>> {
-    const response = await axios.post<Record<string, EarthquakeBoxStatistics>>(
+    const response = await axios.post(
       `${API_BASE}/earthquake-parametric/analysis/bulk-statistics`,
       {
         boxes,
@@ -95,6 +95,6 @@ export const earthquakeParametricApi = {
         dataset: filters.dataset,
       }
     )
-    return response.data
+    return response.data.data
   },
 }

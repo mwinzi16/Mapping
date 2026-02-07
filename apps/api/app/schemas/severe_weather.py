@@ -121,4 +121,6 @@ class SevereWeatherList(BaseModel):
     """Schema for severe weather list response."""
     items: List[SevereWeatherResponse]
     total: int
+    page: int
+    per_page: int
     event_type: Optional[str] = None

@@ -9,11 +9,11 @@ import csv
 import io
 import logging
 from datetime import datetime
-from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
+from app.utils.cache import TTLCache
 from app.utils.weather import wind_to_category
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ class IBTrACSClient:
         # Use shorter timeouts - NOAA servers can be slow/unavailable
         timeout = httpx.Timeout(10.0, connect=5.0)  # 5s connect, 10s total
         self.client = httpx.AsyncClient(timeout=timeout)
-        self._cache: Dict[str, List[Dict]] = {}
+        self._cache: TTLCache = TTLCache(max_size=50, ttl_seconds=3600)
     
     async def fetch_hurricanes(
         self,
@@ -68,11 +68,10 @@ class IBTrACSClient:
             cache_key = "basin_NA"
         
         # Check cache
-        if cache_key not in self._cache:
-            raw_data = await self._fetch_and_parse_csv(url)
-            self._cache[cache_key] = raw_data
-        
-        hurricanes = self._cache[cache_key]
+        hurricanes = self._cache.get(cache_key)
+        if hurricanes is None:
+            hurricanes = await self._fetch_and_parse_csv(url)
+            self._cache.set(cache_key, hurricanes)
         
         # Filter by year and category
         filtered = []

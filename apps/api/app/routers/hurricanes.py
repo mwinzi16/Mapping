@@ -9,9 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.response import success_response
+from app.core.clients import get_noaa_client
 from app.schemas.hurricane import HurricaneList, HurricaneResponse
 from app.services.hurricane_service import HurricaneService
-from app.services.noaa_client import NOAAClient
 
 router = APIRouter()
 
@@ -29,13 +30,14 @@ async def list_hurricanes(
     Get a paginated list of hurricanes with optional filters.
     """
     service = HurricaneService(db)
-    return await service.get_hurricanes(
+    result = await service.get_hurricanes(
         basin=basin,
         is_active=is_active,
         min_category=min_category,
         page=page,
         per_page=per_page,
     )
+    return success_response(result)
 
 
 @router.get("/active")
@@ -43,17 +45,10 @@ async def get_active_storms():
     """
     Get currently active tropical storms and hurricanes from NOAA.
     """
-    client = NOAAClient()
-    try:
-        storms = await client.fetch_active_storms()
+    client = get_noaa_client()
+    storms = await client.fetch_active_storms()
 
-        return {
-            "storms": storms,
-            "count": len(storms),
-            "source": "NOAA National Hurricane Center",
-        }
-    finally:
-        await client.close()
+    return success_response(storms, meta={"count": len(storms), "source": "NOAA National Hurricane Center"})
 
 
 @router.get("/season/{year}")
@@ -68,12 +63,10 @@ async def get_season_hurricanes(
     service = HurricaneService(db)
     hurricanes = await service.get_by_season(year=year, basin=basin)
     
-    return {
-        "year": year,
-        "basin": basin,
-        "storms": hurricanes,
-        "count": len(hurricanes),
-    }
+    return success_response(
+        hurricanes,
+        meta={"year": year, "basin": basin, "count": len(hurricanes)},
+    )
 
 
 @router.get("/{hurricane_id}", response_model=HurricaneResponse)
@@ -90,7 +83,7 @@ async def get_hurricane(
     if not hurricane:
         raise HTTPException(status_code=404, detail="Hurricane not found")
     
-    return HurricaneResponse.from_orm_with_geometry(hurricane)
+    return success_response(HurricaneResponse.from_orm_with_geometry(hurricane))
 
 
 @router.get("/{hurricane_id}/track")
@@ -134,9 +127,6 @@ async def get_hurricane_forecast(
         raise HTTPException(status_code=400, detail="Hurricane is no longer active")
     
     # Fetch forecast from NOAA
-    client = NOAAClient()
-    try:
-        forecast = await client.fetch_forecast(hurricane.storm_id)
-        return forecast
-    finally:
-        await client.close()
+    client = get_noaa_client()
+    forecast = await client.fetch_forecast(hurricane.storm_id)
+    return success_response(forecast)

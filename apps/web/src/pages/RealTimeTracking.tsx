@@ -4,8 +4,10 @@ import Sidebar from '../components/Sidebar'
 import NotificationPanel from '../components/NotificationPanel'
 import { useEventStore } from '../stores/eventStore'
 import { useWebSocket } from '../hooks/useWebSocket'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export default function RealTimeTracking() {
+  useDocumentTitle('Real-Time Tracking')
   const { fetchAllEvents } = useEventStore()
   
   // Initialize WebSocket connection

@@ -47,6 +47,8 @@ export default function DrawingToolbar({
               : 'text-gray-400 hover:bg-gray-700 hover:text-white'
           }`}
           title="Select mode (click zones)"
+          aria-label="Select mode (click zones)"
+          aria-pressed={!isDrawing}
         >
           <MousePointer className="w-5 h-5" />
         </button>
@@ -60,6 +62,8 @@ export default function DrawingToolbar({
               : 'text-gray-400 hover:bg-gray-700 hover:text-white'
           }`}
           title="Draw trigger zone"
+          aria-label="Draw trigger zone"
+          aria-pressed={isDrawing}
         >
           <Square className="w-5 h-5" />
         </button>
@@ -70,6 +74,7 @@ export default function DrawingToolbar({
         <label
           className="p-2 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white cursor-pointer transition-colors"
           title="Upload GeoJSON zones"
+          aria-label="Upload GeoJSON zones"
         >
           <Upload className="w-5 h-5" />
           <input
@@ -86,6 +91,7 @@ export default function DrawingToolbar({
             onClick={onClearAllZones}
             className="p-2 rounded-lg text-gray-400 hover:bg-red-600 hover:text-white transition-colors"
             title="Clear all zones"
+            aria-label="Clear all zones"
           >
             <Trash2 className="w-5 h-5" />
           </button>
@@ -102,6 +108,8 @@ export default function DrawingToolbar({
               : 'text-gray-400 hover:bg-gray-700 hover:text-white'
           }`}
           title="Show help"
+          aria-label="Show help"
+          aria-pressed={showHelp}
         >
           <Info className="w-5 h-5" />
         </button>
@@ -122,6 +130,7 @@ export default function DrawingToolbar({
           <button
             onClick={onStopDrawing}
             className="text-green-400 hover:text-white"
+            aria-label="Stop drawing"
           >
             <X className="w-4 h-4" />
           </button>

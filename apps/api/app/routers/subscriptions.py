@@ -3,13 +3,15 @@ Subscription API endpoints for email alerts.
 """
 from __future__ import annotations
 
-import secrets
-from datetime import datetime, timezone
-from typing import Optional
+import logging
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
-from pydantic import EmailStr
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import get_api_key
+from app.core.rate_limit import limiter
+from app.core.database import get_db
+from app.core.response import success_response
 from app.schemas.subscription import (
     SubscriptionCreate,
     SubscriptionMessage,
@@ -17,161 +19,106 @@ from app.schemas.subscription import (
     SubscriptionUpdate,
 )
 from app.services.email_service import email_service
+from app.services.subscription_service import subscription_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
-
-# In-memory storage for demo (use database in production)
-_subscriptions: dict = {}
-
-
-def _generate_token() -> str:
-    return secrets.token_urlsafe(32)
 
 
 @router.post("/subscribe", response_model=SubscriptionMessage)
+@limiter.limit("5/minute")
 async def subscribe(
+    request: Request,
     subscription: SubscriptionCreate,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    api_key: str = Depends(get_api_key),
 ):
-    """
-    Subscribe to catastrophe alerts.
+    """Subscribe to catastrophe alerts.
+
     A verification email will be sent to confirm the subscription.
+    Returns a uniform message regardless of email state to prevent enumeration.
     """
-    email = subscription.email.lower()
-    
-    # Check if already subscribed
-    if email in _subscriptions:
-        existing = _subscriptions[email]
-        if existing.get("is_verified"):
-            raise HTTPException(
-                status_code=400,
-                detail="This email is already subscribed. Use the preferences page to update settings."
+    try:
+        sub, message, needs_email = await subscription_service.create_subscription(
+            db, subscription
+        )
+
+        if needs_email and sub is not None:
+            background_tasks.add_task(
+                email_service.send_verification_email,
+                sub.email,
+                sub.verification_token,
             )
-        # Resend verification
-        background_tasks.add_task(
-            email_service.send_verification_email,
-            email,
-            existing["verification_token"]
+
+        return success_response(SubscriptionMessage(message=message))
+    except Exception:
+        logger.exception("Error creating subscription")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred. Please try again later.",
         )
-        return SubscriptionMessage(
-            message="Verification email resent. Please check your inbox."
-        )
-    
-    # Create new subscription
-    verification_token = _generate_token()
-    unsubscribe_token = _generate_token()
-    
-    _subscriptions[email] = {
-        "id": len(_subscriptions) + 1,
-        "email": email,
-        "is_verified": False,
-        "is_active": True,
-        "verification_token": verification_token,
-        "unsubscribe_token": unsubscribe_token,
-        "alert_earthquakes": subscription.alert_earthquakes,
-        "alert_hurricanes": subscription.alert_hurricanes,
-        "alert_wildfires": subscription.alert_wildfires,
-        "alert_tornadoes": subscription.alert_tornadoes,
-        "alert_flooding": subscription.alert_flooding,
-        "alert_hail": subscription.alert_hail,
-        "min_earthquake_magnitude": subscription.min_earthquake_magnitude,
-        "min_hurricane_category": subscription.min_hurricane_category,
-        "location_filter": subscription.location_filter.model_dump() if subscription.location_filter else None,
-        "max_emails_per_day": subscription.max_emails_per_day,
-        "emails_sent_today": 0,
-        "created_at": datetime.now(timezone.utc),
-    }
-    
-    # Send verification email
-    background_tasks.add_task(
-        email_service.send_verification_email,
-        email,
-        verification_token
-    )
-    
-    return SubscriptionMessage(
-        message="Subscription created! Please check your email to verify your address."
-    )
 
 
 @router.get("/verify/{token}", response_model=SubscriptionMessage)
-async def verify_email(token: str):
+async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
     """Verify email address using the token from verification email."""
-    
-    for email, sub in _subscriptions.items():
-        if sub.get("verification_token") == token:
-            sub["is_verified"] = True
-            sub["verification_token"] = None
-            return SubscriptionMessage(
-                message="Email verified successfully! You will now receive catastrophe alerts."
-            )
-    
-    raise HTTPException(status_code=404, detail="Invalid or expired verification token")
+    sub = await subscription_service.verify_subscription(db, token)
+    if sub is None:
+        raise HTTPException(
+            status_code=404, detail="Invalid or expired verification token"
+        )
+    return success_response(SubscriptionMessage(
+        message="Email verified successfully! You will now receive catastrophe alerts."
+    ))
 
 
 @router.get("/unsubscribe/{token}", response_model=SubscriptionMessage)
-async def unsubscribe(token: str):
+async def unsubscribe(token: str, db: AsyncSession = Depends(get_db)):
     """Unsubscribe from all alerts using the unsubscribe token."""
-    
-    for email, sub in _subscriptions.items():
-        if sub.get("unsubscribe_token") == token:
-            sub["is_active"] = False
-            return SubscriptionMessage(
-                message="You have been unsubscribed from all catastrophe alerts."
-            )
-    
-    raise HTTPException(status_code=404, detail="Invalid unsubscribe token")
+    sub = await subscription_service.unsubscribe(db, token)
+    if sub is None:
+        raise HTTPException(status_code=404, detail="Invalid unsubscribe token")
+    return success_response(SubscriptionMessage(
+        message="You have been unsubscribed from all catastrophe alerts."
+    ))
 
 
 @router.get("/preferences/{email}", response_model=SubscriptionResponse)
-async def get_preferences(email: str):
+async def get_preferences(email: str, db: AsyncSession = Depends(get_db)):
     """Get current subscription preferences."""
-    
-    email = email.lower()
-    if email not in _subscriptions:
+    sub = await subscription_service.get_preferences(db, email)
+    if sub is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
-    
-    sub = _subscriptions[email]
-    return SubscriptionResponse(**sub)
+    return success_response(SubscriptionResponse.model_validate(sub))
 
 
 @router.put("/preferences/{email}", response_model=SubscriptionMessage)
-async def update_preferences(email: str, updates: SubscriptionUpdate):
+@limiter.limit("10/minute")
+async def update_preferences(
+    request: Request,
+    email: str,
+    updates: SubscriptionUpdate,
+    db: AsyncSession = Depends(get_db),
+    api_key: str = Depends(get_api_key),
+):
     """Update subscription preferences."""
-    
-    email = email.lower()
-    if email not in _subscriptions:
+    sub = await subscription_service.update_preferences(db, email, updates)
+    if sub is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
-    
-    sub = _subscriptions[email]
-    
-    for field, value in updates.model_dump(exclude_none=True).items():
-        if field == "location_filter" and value:
-            sub[field] = value.model_dump() if hasattr(value, 'model_dump') else value
-        else:
-            sub[field] = value
-    
-    return SubscriptionMessage(message="Preferences updated successfully!")
+    return success_response(SubscriptionMessage(message="Preferences updated successfully!"))
 
 
 @router.post("/resubscribe/{email}", response_model=SubscriptionMessage)
-async def resubscribe(email: str):
+@limiter.limit("5/minute")
+async def resubscribe(
+    request: Request,
+    email: str,
+    db: AsyncSession = Depends(get_db),
+    api_key: str = Depends(get_api_key),
+):
     """Reactivate a previously unsubscribed email."""
-    
-    email = email.lower()
-    if email not in _subscriptions:
+    sub = await subscription_service.resubscribe(db, email)
+    if sub is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
-    
-    sub = _subscriptions[email]
-    sub["is_active"] = True
-    
-    return SubscriptionMessage(message="Subscription reactivated!")
-
-
-# Helper function for the background alerter
-def get_active_subscriptions() -> list:
-    """Get all active, verified subscriptions."""
-    return [
-        sub for sub in _subscriptions.values()
-        if sub.get("is_verified") and sub.get("is_active")
-    ]
+    return success_response(SubscriptionMessage(message="Subscription reactivated!"))

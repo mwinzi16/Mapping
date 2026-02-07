@@ -1,10 +1,13 @@
 """
 Hurricane database model.
 """
+from __future__ import annotations
+
 from datetime import datetime, timezone
-from sqlalchemy import String, Float, DateTime, Integer, Text
-from sqlalchemy.orm import Mapped, mapped_column
+
 from geoalchemy2 import Geometry
+from sqlalchemy import CheckConstraint, DateTime, Float, Index, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
@@ -13,6 +16,13 @@ class Hurricane(Base):
     """Hurricane/Tropical Cyclone event model."""
     
     __tablename__ = "hurricanes"
+    __table_args__ = (
+        Index("idx_hurricane_geometry", "geometry", postgresql_using="gist"),
+        Index("idx_hurricane_track", "track", postgresql_using="gist"),
+        Index("idx_hurricane_is_active", "is_active"),
+        Index("idx_hurricane_basin_advisory", "basin", "advisory_time"),
+        CheckConstraint("category >= 0 AND category <= 5", name="ck_hurricane_category_range"),
+    )
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     storm_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
@@ -53,11 +63,18 @@ class Hurricane(Base):
     
     # Record timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False,
     )
     
     def __repr__(self) -> str:
-        return f"<Hurricane {self.name} (Cat {self.category})>"
+        return f"<Hurricane(id={self.id}, {self.name}, Cat{self.category})>"

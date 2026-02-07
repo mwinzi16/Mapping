@@ -11,9 +11,11 @@ import ssl
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from html import escape
 from typing import Any, Dict, List, Optional
 
 from app.core.config import settings
+from app.utils.privacy import mask_email
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +37,12 @@ class EmailService:
         <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 16px 0;">
             <h2 style="color: #92400e; margin: 0 0 8px 0;">🔴 Earthquake Alert</h2>
             <p style="font-size: 24px; font-weight: bold; color: #78350f; margin: 0;">
-                Magnitude {event.get('magnitude', 'N/A')}
+                Magnitude {escape(str(event.get('magnitude', 'N/A')))}
             </p>
-            <p style="color: #92400e; margin: 8px 0;">{event.get('place', 'Unknown location')}</p>
+            <p style="color: #92400e; margin: 8px 0;">{escape(str(event.get('place', 'Unknown location')))}</p>
             <p style="color: #a16207; font-size: 14px;">
-                Depth: {event.get('depth_km', 'N/A')} km<br>
-                Time: {event.get('event_time', 'Unknown')}
+                Depth: {escape(str(event.get('depth_km', 'N/A')))} km<br>
+                Time: {escape(str(event.get('event_time', 'Unknown')))}
             </p>
         </div>
         """
@@ -48,17 +50,17 @@ class EmailService:
     def _get_hurricane_html(self, event: Dict[str, Any]) -> str:
         """Generate HTML for hurricane alert."""
         category = event.get('category')
-        cat_text = f"Category {category}" if category else "Tropical Storm"
+        cat_text = f"Category {escape(str(category))}" if category else "Tropical Storm"
         return f"""
         <div style="background: #dbeafe; border-left: 4px solid #3b82f6; padding: 16px; margin: 16px 0;">
             <h2 style="color: #1e40af; margin: 0 0 8px 0;">🌀 Hurricane Alert</h2>
             <p style="font-size: 24px; font-weight: bold; color: #1e3a8a; margin: 0;">
-                {event.get('name', 'Unknown')} - {cat_text}
+                {escape(str(event.get('name', 'Unknown')))} - {cat_text}
             </p>
-            <p style="color: #1e40af; margin: 8px 0;">{event.get('classification', '')}</p>
+            <p style="color: #1e40af; margin: 8px 0;">{escape(str(event.get('classification', '')))}</p>
             <p style="color: #3730a3; font-size: 14px;">
-                Max winds: {event.get('max_wind_mph', 'N/A')} mph<br>
-                Location: {event.get('latitude', 'N/A')}°, {event.get('longitude', 'N/A')}°
+                Max winds: {escape(str(event.get('max_wind_mph', 'N/A')))} mph<br>
+                Location: {escape(str(event.get('latitude', 'N/A')))}°, {escape(str(event.get('longitude', 'N/A')))}°
             </p>
         </div>
         """
@@ -69,39 +71,39 @@ class EmailService:
         <div style="background: #ffedd5; border-left: 4px solid #f97316; padding: 16px; margin: 16px 0;">
             <h2 style="color: #c2410c; margin: 0 0 8px 0;">🔥 Wildfire Alert</h2>
             <p style="font-size: 20px; font-weight: bold; color: #9a3412; margin: 0;">
-                {event.get('name', 'Active Fire Detected')}
+                {escape(str(event.get('name', 'Active Fire Detected')))}
             </p>
             <p style="color: #c2410c; font-size: 14px; margin: 8px 0;">
-                Fire Radiative Power: {event.get('frp', 'N/A')} MW<br>
-                Confidence: {event.get('confidence', 'N/A')}%<br>
-                Location: {event.get('latitude', 'N/A')}°, {event.get('longitude', 'N/A')}°
+                Fire Radiative Power: {escape(str(event.get('frp', 'N/A')))} MW<br>
+                Confidence: {escape(str(event.get('confidence', 'N/A')))}%<br>
+                Location: {escape(str(event.get('latitude', 'N/A')))}°, {escape(str(event.get('longitude', 'N/A')))}°
             </p>
         </div>
         """
     
     def _get_severe_weather_html(self, event: Dict[str, Any]) -> str:
         """Generate HTML for severe weather alert."""
-        event_type = event.get('event_type', 'severe weather')
+        event_type_raw = event.get('event_type', 'severe weather')
         emoji_map = {'tornado': '🌪️', 'flooding': '🌊', 'hail': '🧊'}
-        emoji = emoji_map.get(event_type, '⚡')
+        emoji = emoji_map.get(event_type_raw, '⚡')
         
         color_map = {
             'tornado': ('#f3e8ff', '#9333ea', '#7c3aed'),
             'flooding': ('#dbeafe', '#2563eb', '#1d4ed8'),
             'hail': ('#cffafe', '#0891b2', '#0e7490'),
         }
-        colors = color_map.get(event_type, ('#f3f4f6', '#4b5563', '#374151'))
+        colors = color_map.get(event_type_raw, ('#f3f4f6', '#4b5563', '#374151'))
         
         return f"""
         <div style="background: {colors[0]}; border-left: 4px solid {colors[1]}; padding: 16px; margin: 16px 0;">
-            <h2 style="color: {colors[2]}; margin: 0 0 8px 0;">{emoji} {event_type.title()} Alert</h2>
+            <h2 style="color: {colors[2]}; margin: 0 0 8px 0;">{emoji} {escape(event_type_raw.title())} Alert</h2>
             <p style="font-size: 18px; font-weight: bold; color: {colors[2]}; margin: 0;">
-                {event.get('location', 'Unknown location')}
+                {escape(str(event.get('location', 'Unknown location')))}
             </p>
-            <p style="color: {colors[1]}; margin: 8px 0;">{event.get('description', '')}</p>
+            <p style="color: {colors[1]}; margin: 8px 0;">{escape(str(event.get('description', '')))}</p>
             <p style="color: {colors[1]}; font-size: 14px;">
-                Severity: {event.get('severity', 'N/A')}<br>
-                Expires: {event.get('expires_at', 'N/A')}
+                Severity: {escape(str(event.get('severity', 'N/A')))}<br>
+                Expires: {escape(str(event.get('expires_at', 'N/A')))}
             </p>
         </div>
         """
@@ -260,7 +262,7 @@ class EmailService:
         if not self.smtp_user or self.smtp_host == 'localhost':
             logger.info(
                 "Email (dev mode) TO=%s SUBJECT=%s BODY=%s",
-                to_email,
+                mask_email(to_email),
                 subject,
                 text[:500],
             )
@@ -276,12 +278,12 @@ class EmailService:
             message.attach(MIMEText(html, "html"))
             
             # Run SMTP in thread pool to not block
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._send_smtp, message, to_email)
             
             return True
         except Exception as e:
-            logger.error("Error sending email to %s: %s", to_email, e)
+            logger.error("Error sending email to %s: %s", mask_email(to_email), e)
             return False
     
     def _send_smtp(self, message: MIMEMultipart, to_email: str):

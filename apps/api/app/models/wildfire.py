@@ -1,10 +1,13 @@
 """
 Wildfire database model.
 """
+from __future__ import annotations
+
 from datetime import datetime, timezone
-from sqlalchemy import String, Float, DateTime, Integer, Text, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
+
 from geoalchemy2 import Geometry
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, Index, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
@@ -13,6 +16,13 @@ class Wildfire(Base):
     """Wildfire event model with PostGIS geometry."""
     
     __tablename__ = "wildfires"
+    __table_args__ = (
+        Index("idx_wildfire_geometry", "geometry", postgresql_using="gist"),
+        Index("idx_wildfire_is_active", "is_active"),
+        Index("idx_wildfire_detected_at", "detected_at"),
+        CheckConstraint("confidence >= 0 AND confidence <= 100", name="ck_wildfire_confidence_range"),
+        CheckConstraint("containment_percent >= 0 AND containment_percent <= 100", name="ck_wildfire_containment_range"),
+    )
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     source_id: Mapped[str] = mapped_column(String(100), unique=True, index=True)
@@ -48,11 +58,18 @@ class Wildfire(Base):
     
     # Record timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False,
     )
     
     def __repr__(self) -> str:
-        return f"<Wildfire {self.name or self.source_id} ({self.acres_burned or 0} acres)>"
+        return f"<Wildfire(id={self.id}, {self.name})>"

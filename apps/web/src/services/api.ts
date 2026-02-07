@@ -1,8 +1,8 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api'
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
-const client = axios.create({
+export const client = axios.create({
   baseURL: API_BASE,
   headers: {
     'Content-Type': 'application/json',
@@ -27,7 +27,7 @@ export const api = {
   
   async getEarthquake(id: string) {
     const response = await client.get(`/earthquakes/usgs/${id}`)
-    return response.data
+    return response.data.data
   },
   
   // Hurricanes
@@ -38,7 +38,7 @@ export const api = {
   
   async getHurricane(id: number) {
     const response = await client.get(`/hurricanes/${id}`)
-    return response.data
+    return response.data.data
   },
   
   async getHurricaneTrack(id: number) {
@@ -63,7 +63,7 @@ export const api = {
   
   async getMajorWildfires() {
     const response = await client.get('/wildfires/major')
-    return response.data
+    return response.data.data
   },
   
   // Severe Weather (Tornado, Hail, Flooding)
@@ -71,26 +71,26 @@ export const api = {
     const response = await client.get('/severe-weather/alerts', {
       params: { event_type: eventType, state },
     })
-    return response.data
+    return response.data.data
   },
   
   async getTornadoAlerts() {
     const response = await client.get('/severe-weather/tornadoes')
-    return response.data
+    return response.data.data
   },
   
   async getFloodAlerts() {
     const response = await client.get('/severe-weather/flooding')
-    return response.data
+    return response.data.data
   },
   
   async getHailAlerts() {
     const response = await client.get('/severe-weather/hail')
-    return response.data
+    return response.data.data
   },
   
   async getStormReports() {
     const response = await client.get('/severe-weather/storm-reports')
-    return response.data
+    return response.data.data
   },
 }

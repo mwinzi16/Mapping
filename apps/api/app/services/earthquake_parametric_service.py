@@ -4,6 +4,7 @@ Handles box intersection calculations and statistical analysis.
 """
 from __future__ import annotations
 
+import logging
 import math
 from collections import defaultdict
 from datetime import datetime
@@ -17,6 +18,8 @@ from app.schemas.earthquake_parametric import (
     EarthquakeDatasetInfo,
 )
 from app.services.usgs_historical_client import get_usgs_historical_client
+
+logger = logging.getLogger(__name__)
 
 
 # Dataset metadata
@@ -183,8 +186,8 @@ class EarthquakeParametricService:
                     dt = event_time
                 monthly_dist[dt.month] += 1
                 yearly_counts[dt.year] += 1
-            except:
-                pass
+            except (ValueError, TypeError):
+                logger.warning("Failed to parse event_time for earthquake: %s", event_time)
         
         # Count qualifying earthquakes by year
         for eq in qualifying:
@@ -195,8 +198,8 @@ class EarthquakeParametricService:
                 else:
                     dt = event_time
                 qualifying_yearly[dt.year] += 1
-            except:
-                pass
+            except (ValueError, TypeError):
+                logger.warning("Failed to parse event_time for qualifying earthquake: %s", event_time)
         
         # Calculate annual frequency
         annual_frequency = total_count / years_analyzed

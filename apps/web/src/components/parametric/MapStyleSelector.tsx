@@ -262,6 +262,9 @@ export default function MapStyleSelector({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-2 px-3 py-2 bg-gray-800/90 hover:bg-gray-700 text-white rounded-lg shadow-lg transition-colors"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-label={`Map style: ${currentStyle.name}`}
       >
         {currentStyle.icon}
         <span className="text-sm font-medium">{currentStyle.name}</span>
@@ -281,10 +284,12 @@ export default function MapStyleSelector({
 
           {/* Menu */}
           <div className="absolute top-full right-0 mt-2 w-56 bg-gray-800 rounded-lg shadow-xl border border-gray-700 overflow-hidden z-20">
-            <div className="py-1">
+            <div className="py-1" role="listbox" aria-label="Map styles">
               {MAP_STYLES.map((style) => (
                 <button
                   key={style.id}
+                  role="option"
+                  aria-selected={style.id === currentStyleId}
                   onClick={() => {
                     onStyleChange(style)
                     setIsOpen(false)

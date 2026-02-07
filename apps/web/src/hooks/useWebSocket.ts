@@ -1,11 +1,15 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { useEventStore } from '../stores/eventStore'
 
-const WS_URL = import.meta.env.VITE_WS_URL || `ws://localhost:8001/api/notifications/ws`
+const WS_URL = import.meta.env.VITE_WS_URL || `ws://localhost:8001/api/v1/notifications/ws`
+
+const MAX_RECONNECT_ATTEMPTS = 5
 
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<number | null>(null)
+  const attemptRef = useRef(0)
+  const [connectionLost, setConnectionLost] = useState(false)
   // Use refs for store actions to avoid re-creating the connect callback
   const storeRef = useRef(useEventStore.getState())
   
@@ -25,6 +29,8 @@ export function useWebSocket() {
       
       wsRef.current.onopen = () => {
         console.log('🔌 WebSocket connected - receiving real-time updates')
+        attemptRef.current = 0
+        setConnectionLost(false)
         
         // Subscribe to all events
         wsRef.current?.send(JSON.stringify({
@@ -92,11 +98,17 @@ export function useWebSocket() {
       }
       
       wsRef.current.onclose = () => {
-        console.log('WebSocket disconnected, attempting to reconnect...')
-        // Reconnect after 5 seconds
+        if (attemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
+          console.log('WebSocket: max reconnect attempts reached — connection lost')
+          setConnectionLost(true)
+          return
+        }
+        const delay = Math.min(30000, 1000 * Math.pow(2, attemptRef.current)) + Math.random() * 1000
+        attemptRef.current += 1
+        console.log(`WebSocket disconnected, reconnecting in ${Math.round(delay)}ms (attempt ${attemptRef.current}/${MAX_RECONNECT_ATTEMPTS})...`)
         reconnectTimeoutRef.current = window.setTimeout(() => {
           connect()
-        }, 5000)
+        }, delay)
       }
     } catch (error) {
       console.error('Failed to connect WebSocket:', error)
@@ -126,7 +138,7 @@ export function useWebSocket() {
     }
   }, [connect])
   
-  return wsRef.current
+  return { ws: wsRef.current, connectionLost }
 }
 
 // Helper functions for notifications

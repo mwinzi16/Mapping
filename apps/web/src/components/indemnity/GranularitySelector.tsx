@@ -74,6 +74,9 @@ export default function GranularitySelector({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-2 px-3 py-2 bg-gray-900/90 backdrop-blur-sm rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-label={`Granularity: ${currentOption.name}`}
       >
         <span className="text-purple-400">{currentOption.icon}</span>
         <span className="text-sm text-white">{currentOption.name}</span>

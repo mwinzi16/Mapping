@@ -1,11 +1,14 @@
 """
 Severe Weather database models (Tornado, Hail, Flooding).
 """
-from datetime import datetime, timezone
-from sqlalchemy import String, Float, DateTime, Integer, Text, Enum
-from sqlalchemy.orm import Mapped, mapped_column
-from geoalchemy2 import Geometry
+from __future__ import annotations
+
 import enum
+from datetime import datetime, timezone
+
+from geoalchemy2 import Geometry
+from sqlalchemy import CheckConstraint, DateTime, Enum, Float, Index, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
@@ -22,6 +25,14 @@ class SevereWeather(Base):
     """Severe weather event model (tornadoes, hail, flooding, etc.)."""
     
     __tablename__ = "severe_weather"
+    __table_args__ = (
+        Index("idx_severe_weather_geometry", "geometry", postgresql_using="gist"),
+        Index("idx_severe_weather_type_time", "event_type", "event_time"),
+        CheckConstraint(
+            "tornado_scale IS NULL OR (tornado_scale >= 0 AND tornado_scale <= 5)",
+            name="ck_severe_weather_tornado_range",
+        ),
+    )
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     source_id: Mapped[str] = mapped_column(String(100), unique=True, index=True)
@@ -69,8 +80,18 @@ class SevereWeather(Base):
     
     # Record timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False,
     )
     
     def __repr__(self) -> str:
-        return f"<SevereWeather {self.event_type.value} @ {self.location}>"
+        return f"<SevereWeather(id={self.id}, {self.event_type})>"

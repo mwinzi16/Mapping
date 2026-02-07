@@ -1,10 +1,10 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
 import { useIndemnityStore } from '../stores/indemnityStore'
 import { formatTIVShort } from '../utils/tivExcelUtils'
 import { escapeHtml } from '../utils/sanitize'
 import { shouldUseChoropleth, renderChoropleth, removeChoropleth } from '../utils/choroplethUtils'
+import { getTIVColor, getMarkerSize, createMarkerElement, clearMarkers, getDefaultMapOptions } from '../utils/mapUtils'
 import { 
   fetchHistoricalEarthquakes, 
   fetchHistoricalHurricanes,
@@ -34,6 +34,7 @@ import {
   Star,
   RefreshCw,
 } from 'lucide-react'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 // =============================================================================
 // TYPES
@@ -63,10 +64,16 @@ function getCategoryColor(category: number | null): string {
 }
 
 export default function IndemnityHistorical() {
+  useDocumentTitle('Historical Analysis')
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const tivMarkersRef = useRef<maplibregl.Marker[]>([])
   const eventMarkersRef = useRef<maplibregl.Marker[]>([])
+  const trackHandlersRef = useRef<{
+    click?: (e: any) => void
+    mouseenter?: () => void
+    mouseleave?: () => void
+  }>({})
   const [isMapReady, setIsMapReady] = useState(false)
   const [mapStyle, setMapStyle] = useState('dark')
   const [showTIV, setShowTIV] = useState(true)
@@ -160,9 +167,7 @@ export default function IndemnityHistorical() {
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-      center: [-95, 38],
-      zoom: 4,
+      ...getDefaultMapOptions(),
     })
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
@@ -181,14 +186,12 @@ export default function IndemnityHistorical() {
 
   // Clear TIV markers
   const clearTIVMarkers = useCallback(() => {
-    tivMarkersRef.current.forEach((marker) => marker.remove())
-    tivMarkersRef.current = []
+    clearMarkers(tivMarkersRef.current)
   }, [])
 
   // Clear event markers
   const clearEventMarkers = useCallback(() => {
-    eventMarkersRef.current.forEach((marker) => marker.remove())
-    eventMarkersRef.current = []
+    clearMarkers(eventMarkersRef.current)
   }, [])
 
   // Handle map style changes
@@ -231,22 +234,6 @@ export default function IndemnityHistorical() {
 
     mapRef.current.setStyle(styleValue)
   }, [clearTIVMarkers, clearEventMarkers])
-
-  // Get color based on TIV value
-  const getTIVColor = (tiv: number, maxTIV: number): string => {
-    const ratio = tiv / maxTIV
-    if (ratio > 0.8) return '#a855f7'
-    if (ratio > 0.6) return '#c084fc'
-    if (ratio > 0.4) return '#d8b4fe'
-    if (ratio > 0.2) return '#e9d5ff'
-    return '#f3e8ff'
-  }
-
-  // Get marker size based on TIV
-  const getMarkerSize = (tiv: number, maxTIV: number): number => {
-    const ratio = tiv / maxTIV
-    return Math.max(8, Math.min(24, 8 + ratio * 16))
-  }
 
   // Render TIV visualization (markers for granular, choropleth for aggregated)
   const renderTIVVisualization = useCallback(async () => {
@@ -300,14 +287,7 @@ export default function IndemnityHistorical() {
       const size = getMarkerSize(tiv, maxTIV)
       const color = getTIVColor(tiv, maxTIV)
 
-      const el = document.createElement('div')
-      el.style.width = `${size}px`
-      el.style.height = `${size}px`
-      el.style.backgroundColor = color
-      el.style.borderRadius = '50%'
-      el.style.border = '2px solid rgba(168, 85, 247, 0.8)'
-      el.style.cursor = 'pointer'
-      el.style.opacity = '0.8'
+      const el = createMarkerElement(color, size)
 
       const name = point.name || point.address || point.id
       const count = point.recordCount || 1
@@ -349,6 +329,20 @@ export default function IndemnityHistorical() {
     }
 
     clearEventMarkers()
+
+    // Remove old event handlers to prevent accumulation
+    if (mapRef.current) {
+      if (trackHandlersRef.current.click && mapRef.current.getLayer('hurricane-track-points')) {
+        mapRef.current.off('click', 'hurricane-track-points', trackHandlersRef.current.click)
+      }
+      if (trackHandlersRef.current.mouseenter && mapRef.current.getLayer('hurricane-track-points')) {
+        mapRef.current.off('mouseenter', 'hurricane-track-points', trackHandlersRef.current.mouseenter)
+      }
+      if (trackHandlersRef.current.mouseleave && mapRef.current.getLayer('hurricane-track-points')) {
+        mapRef.current.off('mouseleave', 'hurricane-track-points', trackHandlersRef.current.mouseleave)
+      }
+      trackHandlersRef.current = {}
+    }
 
     // Remove existing track layers
     if (mapRef.current.getLayer('hurricane-tracks')) {
@@ -497,7 +491,7 @@ export default function IndemnityHistorical() {
       })
 
       // Add click handler for track points
-      mapRef.current.on('click', 'hurricane-track-points', (e) => {
+      const handleTrackClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.GeoJSONFeature[] }) => {
         if (!e.features || e.features.length === 0) return
         const props = e.features[0].properties
         const coords = (e.features[0].geometry as GeoJSON.Point).coordinates
@@ -521,15 +515,25 @@ export default function IndemnityHistorical() {
             </div>
           `)
           .addTo(mapRef.current!)
-      })
+      }
+      mapRef.current.on('click', 'hurricane-track-points', handleTrackClick as any)
 
       // Change cursor on hover
-      mapRef.current.on('mouseenter', 'hurricane-track-points', () => {
+      const handleMouseEnter = () => {
         if (mapRef.current) mapRef.current.getCanvas().style.cursor = 'pointer'
-      })
-      mapRef.current.on('mouseleave', 'hurricane-track-points', () => {
+      }
+      const handleMouseLeave = () => {
         if (mapRef.current) mapRef.current.getCanvas().style.cursor = ''
-      })
+      }
+      mapRef.current.on('mouseenter', 'hurricane-track-points', handleMouseEnter as any)
+      mapRef.current.on('mouseleave', 'hurricane-track-points', handleMouseLeave as any)
+
+      // Store handlers for cleanup
+      trackHandlersRef.current = {
+        click: handleTrackClick as any,
+        mouseenter: handleMouseEnter,
+        mouseleave: handleMouseLeave,
+      }
     }
 
     // Fit bounds to all selected events

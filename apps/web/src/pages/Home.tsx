@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
 import { BarChart3, Shield, Globe, TrendingUp, Activity, MapPin } from 'lucide-react'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export default function Home() {
+  useDocumentTitle('Dashboard')
   return (
     <div className="flex-1 bg-gray-900 overflow-auto">
       {/* Hero Section */}

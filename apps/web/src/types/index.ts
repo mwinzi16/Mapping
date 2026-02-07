@@ -95,13 +95,68 @@ export interface GeoJSONFeature {
     type: 'Point' | 'LineString' | 'Polygon'
     coordinates: number[] | number[][] | number[][][]
   }
-  properties: Record<string, any>
+  properties: Record<string, unknown>
 }
 
 export interface GeoJSONFeatureCollection {
   type: 'FeatureCollection'
   features: GeoJSONFeature[]
   metadata?: Record<string, any>
+}
+
+/** USGS earthquake GeoJSON feature */
+export interface USGSEarthquakeFeature {
+  type: 'Feature'
+  id: string
+  properties: {
+    mag: number
+    magType: string
+    place: string
+    time: number
+    status: string
+    tsunami: number
+    sig: number
+  }
+  geometry: {
+    type: 'Point'
+    coordinates: [number, number, number] // [longitude, latitude, depth_km]
+  }
+}
+
+/** Wildfire GeoJSON feature from API */
+export interface WildfireFeature {
+  type: 'Feature'
+  properties: {
+    source_id: string
+    brightness: number
+    frp: number
+    confidence: number
+    satellite: string
+    detected_at: string
+  }
+  geometry: {
+    type: 'Point'
+    coordinates: [number, number] // [longitude, latitude]
+  }
+}
+
+/** Severe weather GeoJSON feature from API */
+export interface SevereWeatherFeature {
+  type: 'Feature'
+  properties: {
+    source_id: string
+    event_type: string
+    location?: string
+    description?: string
+    severity?: string
+    urgency?: string
+    event_time: string
+    expires_at?: string
+  }
+  geometry: {
+    type: 'Point'
+    coordinates: [number, number] // [longitude, latitude]
+  }
 }
 
 // Re-export parametric types

@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Bell, Mail, MapPin, X, Check, Loader2 } from 'lucide-react'
+import { isAxiosError } from 'axios'
+import { client } from '../services/api'
 
 interface SubscriptionFormData {
   email: string
@@ -17,7 +19,22 @@ interface SubscriptionFormData {
   radius_km: number
 }
 
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+interface SubscriptionPayload {
+  email: string
+  alert_earthquakes: boolean
+  alert_hurricanes: boolean
+  alert_wildfires: boolean
+  alert_tornadoes: boolean
+  alert_flooding: boolean
+  alert_hail: boolean
+  min_earthquake_magnitude: number
+  min_hurricane_category: number
+  location_filter?: {
+    latitude: number
+    longitude: number
+    radius_km: number
+  }
+}
 
 export default function SubscribeModal({ 
   isOpen, 
@@ -50,7 +67,7 @@ export default function SubscribeModal({
     setErrorMessage('')
     
     try {
-      const payload: any = {
+      const payload: SubscriptionPayload = {
         email: formData.email,
         alert_earthquakes: formData.alert_earthquakes,
         alert_hurricanes: formData.alert_hurricanes,
@@ -60,32 +77,25 @@ export default function SubscribeModal({
         alert_hail: formData.alert_hail,
         min_earthquake_magnitude: formData.min_earthquake_magnitude,
         min_hurricane_category: formData.min_hurricane_category,
+        ...(formData.use_location && formData.latitude && formData.longitude
+          ? {
+              location_filter: {
+                latitude: formData.latitude,
+                longitude: formData.longitude,
+                radius_km: formData.radius_km,
+              },
+            }
+          : {}),
       }
       
-      if (formData.use_location && formData.latitude && formData.longitude) {
-        payload.location_filter = {
-          latitude: formData.latitude,
-          longitude: formData.longitude,
-          radius_km: formData.radius_km,
-        }
-      }
-      
-      const response = await fetch(`${API_URL}/subscriptions/subscribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      
-      const data = await response.json()
-      
-      if (response.ok) {
-        setStep('success')
-      } else {
-        setErrorMessage(data.detail || 'Failed to subscribe')
-        setStep('error')
-      }
+      await client.post('/subscriptions/subscribe', payload)
+      setStep('success')
     } catch (err) {
-      setErrorMessage('Network error. Please try again.')
+      if (isAxiosError(err) && err.response) {
+        setErrorMessage(err.response.data?.detail || 'Failed to subscribe')
+      } else {
+        setErrorMessage('Network error. Please try again.')
+      }
       setStep('error')
     } finally {
       setIsLoading(false)
@@ -109,23 +119,75 @@ export default function SubscribeModal({
       )
     }
   }
+
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    // Focus first focusable element when modal opens
+    const timer = setTimeout(() => {
+      const firstInput = modalRef.current?.querySelector<HTMLElement>(
+        'input:not([type="hidden"]):not([type="file"]), button, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      firstInput?.focus()
+    }, 0)
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (e.key === 'Tab') {
+        const focusableElements = modalRef.current?.querySelectorAll<HTMLElement>(
+          'input:not([type="hidden"]):not([type="file"]), button, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        if (!focusableElements || focusableElements.length === 0) return
+        const firstEl = focusableElements[0]
+        const lastEl = focusableElements[focusableElements.length - 1]
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            e.preventDefault()
+            lastEl.focus()
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            e.preventDefault()
+            firstEl.focus()
+          }
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen, onClose])
   
   if (!isOpen) return null
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="subscribe-modal-title"
+    >
+      <div ref={modalRef} className="bg-gray-800 rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <div className="flex items-center gap-3">
             <div className="bg-red-600 p-2 rounded-lg">
               <Bell className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-xl font-bold text-white">Subscribe to Alerts</h2>
+            <h2 id="subscribe-modal-title" className="text-xl font-bold text-white">Subscribe to Alerts</h2>
           </div>
           <button 
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
+            aria-label="Close dialog"
           >
             <X className="w-6 h-6" />
           </button>
@@ -148,6 +210,7 @@ export default function SubscribeModal({
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none"
                   placeholder="your@email.com"
+                  aria-label="Email address"
                 />
               </div>
               

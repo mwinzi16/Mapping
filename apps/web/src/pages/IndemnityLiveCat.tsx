@@ -1,11 +1,11 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
 import { useIndemnityStore } from '../stores/indemnityStore'
 import { useEventStore } from '../stores/eventStore'
 import { formatTIVShort } from '../utils/tivExcelUtils'
 import { escapeHtml } from '../utils/sanitize'
 import { shouldUseChoropleth, renderChoropleth, removeChoropleth } from '../utils/choroplethUtils'
+import { getTIVColor, getMarkerSize, createMarkerElement, clearMarkers, getDefaultMapOptions } from '../utils/mapUtils'
 import TIVDataPanel from '../components/indemnity/TIVDataPanel'
 import IndemnityFilterSection from '../components/indemnity/IndemnityFilterSection'
 import IndemnityStatisticsSection from '../components/indemnity/IndemnityStatisticsSection'
@@ -17,8 +17,10 @@ import MapStyleSelector, {
 } from '../components/parametric/MapStyleSelector'
 import GranularitySelector from '../components/indemnity/GranularitySelector'
 import { Activity, AlertTriangle, Loader2 } from 'lucide-react'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export default function IndemnityLiveCat() {
+  useDocumentTitle('Live Cat Monitoring')
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const tivMarkersRef = useRef<maplibregl.Marker[]>([])
@@ -53,9 +55,7 @@ export default function IndemnityLiveCat() {
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-      center: [-95, 38],
-      zoom: 4,
+      ...getDefaultMapOptions(),
     })
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
@@ -79,14 +79,12 @@ export default function IndemnityLiveCat() {
 
   // Clear TIV markers
   const clearTIVMarkers = useCallback(() => {
-    tivMarkersRef.current.forEach((marker) => marker.remove())
-    tivMarkersRef.current = []
+    clearMarkers(tivMarkersRef.current)
   }, [])
 
   // Clear event markers
   const clearEventMarkers = useCallback(() => {
-    eventMarkersRef.current.forEach((marker) => marker.remove())
-    eventMarkersRef.current = []
+    clearMarkers(eventMarkersRef.current)
   }, [])
 
   // Handle map style changes
@@ -118,22 +116,6 @@ export default function IndemnityLiveCat() {
 
     mapRef.current.setStyle(styleValue)
   }, [clearTIVMarkers, clearEventMarkers])
-
-  // Get color based on TIV value
-  const getTIVColor = (tiv: number, maxTIV: number): string => {
-    const ratio = tiv / maxTIV
-    if (ratio > 0.8) return '#a855f7' // purple-500
-    if (ratio > 0.6) return '#c084fc' // purple-400
-    if (ratio > 0.4) return '#d8b4fe' // purple-300
-    if (ratio > 0.2) return '#e9d5ff' // purple-200
-    return '#f3e8ff' // purple-100
-  }
-
-  // Get marker size based on TIV
-  const getMarkerSize = (tiv: number, maxTIV: number): number => {
-    const ratio = tiv / maxTIV
-    return Math.max(8, Math.min(24, 8 + ratio * 16))
-  }
 
   // Render TIV visualization (markers for granular, choropleth for aggregated)
   const renderTIVVisualization = useCallback(async () => {
@@ -187,15 +169,7 @@ export default function IndemnityLiveCat() {
       const size = getMarkerSize(tiv, maxTIV)
       const color = getTIVColor(tiv, maxTIV)
 
-      const el = document.createElement('div')
-      el.className = 'tiv-marker'
-      el.style.width = `${size}px`
-      el.style.height = `${size}px`
-      el.style.backgroundColor = color
-      el.style.borderRadius = '50%'
-      el.style.border = '2px solid rgba(168, 85, 247, 0.8)'
-      el.style.cursor = 'pointer'
-      el.style.opacity = '0.8'
+      const el = createMarkerElement(color, size, 'tiv-marker')
 
       const name = point.name || point.address || point.id
       const count = point.recordCount || 1

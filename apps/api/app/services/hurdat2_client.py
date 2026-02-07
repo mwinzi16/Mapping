@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
+from app.utils.cache import TTLCache
 from app.utils.weather import wind_to_category
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ class HURDAT2Client:
     
     def __init__(self):
         self.client = httpx.AsyncClient(timeout=120.0)
-        self._cache: Dict[str, List[Dict]] = {}
+        self._cache: TTLCache = TTLCache(max_size=50, ttl_seconds=3600)
     
     async def fetch_hurricanes(
         self,
@@ -52,11 +53,10 @@ class HURDAT2Client:
             cache_key = "hurdat2_atlantic"
         
         # Check cache
-        if cache_key not in self._cache:
-            raw_data = await self._fetch_and_parse(url)
-            self._cache[cache_key] = raw_data
-        
-        hurricanes = self._cache[cache_key]
+        hurricanes = self._cache.get(cache_key)
+        if hurricanes is None:
+            hurricanes = await self._fetch_and_parse(url)
+            self._cache.set(cache_key, hurricanes)
         
         # Filter by year and category
         filtered = []

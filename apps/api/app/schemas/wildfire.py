@@ -72,3 +72,5 @@ class WildfireList(BaseModel):
     """Schema for wildfire list response."""
     items: List[WildfireResponse]
     total: int
+    page: int
+    per_page: int

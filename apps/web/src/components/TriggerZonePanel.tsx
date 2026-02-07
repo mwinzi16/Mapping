@@ -13,7 +13,22 @@ import {
 } from 'lucide-react'
 import { useTriggerZoneStore, TriggerZone } from '../stores/triggerZoneStore'
 import { useEventStore } from '../stores/eventStore'
+import type { Earthquake, Hurricane, Wildfire, SevereWeather } from '../types'
 import PayoutConfigPanel from './parametric/PayoutConfigPanel'
+
+interface UploadedGeoJSONFeature {
+  type?: string
+  geometry?: {
+    type: string
+    coordinates: number[][][]
+  }
+  properties?: {
+    name?: string
+    color?: string
+    trigger?: TriggerZone['trigger']
+    payout?: TriggerZone['payout']
+  }
+}
 
 export default function TriggerZonePanel() {
   const {
@@ -47,7 +62,7 @@ export default function TriggerZonePanel() {
         const newZones: TriggerZone[] = []
         
         const features = geojson.features || [geojson]
-        features.forEach((feature: any, index: number) => {
+        features.forEach((feature: UploadedGeoJSONFeature, index: number) => {
           if (feature.geometry?.type === 'Polygon') {
             const coords = feature.geometry.coordinates[0]
             const lngs = coords.map((c: number[]) => c[0])
@@ -124,7 +139,7 @@ export default function TriggerZonePanel() {
     ...severeWeather.map(s => ({ ...s, _type: 'severe' as const })),
   ]
   
-  const getEventLabel = (event: any) => {
+  const getEventLabel = (event: Earthquake | Hurricane | Wildfire | SevereWeather) => {
     if ('magnitude' in event) {
       return `M${event.magnitude.toFixed(1)} - ${event.place}`
     }

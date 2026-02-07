@@ -3,7 +3,7 @@
  * Fetches significant earthquakes and hurricanes for TIV impact analysis.
  */
 
-const API_BASE = `${import.meta.env.VITE_API_URL || '/api'}/indemnity`
+import { client } from './api'
 
 // =============================================================================
 // TYPES
@@ -79,21 +79,16 @@ export async function fetchHistoricalEarthquakes(options: {
   endYear?: number
   minMagnitude?: number
 }): Promise<HistoricalEarthquake[]> {
-  const params = new URLSearchParams()
-  
-  if (options.mode) params.append('mode', options.mode)
-  if (options.limit) params.append('limit', options.limit.toString())
-  if (options.startYear) params.append('start_year', options.startYear.toString())
-  if (options.endYear) params.append('end_year', options.endYear.toString())
-  if (options.minMagnitude) params.append('min_magnitude', options.minMagnitude.toString())
-  
-  const response = await fetch(`${API_BASE}/historical/earthquakes?${params}`)
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch earthquakes: ${response.statusText}`)
-  }
-  
-  return response.json()
+  const response = await client.get('/indemnity/historical/earthquakes', {
+    params: {
+      mode: options.mode,
+      limit: options.limit,
+      start_year: options.startYear,
+      end_year: options.endYear,
+      min_magnitude: options.minMagnitude,
+    },
+  })
+  return response.data.data
 }
 
 /**
@@ -107,33 +102,23 @@ export async function fetchHistoricalHurricanes(options: {
   minCategory?: number
   basin?: string
 }): Promise<HistoricalHurricane[]> {
-  const params = new URLSearchParams()
-  
-  if (options.mode) params.append('mode', options.mode)
-  if (options.limit) params.append('limit', options.limit.toString())
-  if (options.startYear) params.append('start_year', options.startYear.toString())
-  if (options.endYear) params.append('end_year', options.endYear.toString())
-  if (options.minCategory) params.append('min_category', options.minCategory.toString())
-  if (options.basin) params.append('basin', options.basin)
-  
-  const response = await fetch(`${API_BASE}/historical/hurricanes?${params}`)
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch hurricanes: ${response.statusText}`)
-  }
-  
-  return response.json()
+  const response = await client.get('/indemnity/historical/hurricanes', {
+    params: {
+      mode: options.mode,
+      limit: options.limit,
+      start_year: options.startYear,
+      end_year: options.endYear,
+      min_category: options.minCategory,
+      basin: options.basin,
+    },
+  })
+  return response.data.data
 }
 
 /**
  * Fetch summary of available historical data.
  */
 export async function fetchHistoricalSummary(): Promise<HistoricalSummary> {
-  const response = await fetch(`${API_BASE}/historical/summary`)
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch summary: ${response.statusText}`)
-  }
-  
-  return response.json()
+  const response = await client.get('/indemnity/historical/summary')
+  return response.data.data
 }

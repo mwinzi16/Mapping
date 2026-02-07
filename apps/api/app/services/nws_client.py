@@ -194,7 +194,7 @@ class NWSClient:
         coords = geometry.get("coordinates", [])
         
         if geom_type == "Point":
-            return coords[1], coords[0] if len(coords) >= 2 else (None, None)
+            return (coords[1], coords[0]) if len(coords) >= 2 else (None, None)
         elif geom_type == "Polygon" and coords:
             # Get centroid of first ring
             ring = coords[0]

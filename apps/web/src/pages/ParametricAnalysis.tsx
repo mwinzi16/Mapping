@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Waves, Mountain, Loader2 } from 'lucide-react'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 // Tropical Cyclone components
 import ParametricMap from '../components/parametric/ParametricMap'
@@ -18,6 +19,7 @@ import { useEarthquakeParametricStore } from '../stores/earthquakeParametricStor
 type SubTab = 'tropical-cyclone' | 'earthquake'
 
 export default function ParametricAnalysis() {
+  useDocumentTitle('Parametric Analysis')
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('tropical-cyclone')
 
   // Tropical Cyclone state

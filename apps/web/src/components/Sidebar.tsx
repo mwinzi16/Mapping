@@ -8,6 +8,15 @@ import TriggerZonePanel from './TriggerZonePanel'
 
 type Tab = 'earthquakes' | 'hurricanes' | 'wildfires' | 'severe' | 'triggers'
 
+/** Safe mapping of Tailwind color classes to avoid dynamic class purging. */
+const colorClassMap: Record<string, { text: string; border: string }> = {
+  'yellow-500': { text: 'text-yellow-500', border: 'border-yellow-500' },
+  'blue-500': { text: 'text-blue-500', border: 'border-blue-500' },
+  'orange-500': { text: 'text-orange-500', border: 'border-orange-500' },
+  'purple-500': { text: 'text-purple-500', border: 'border-purple-500' },
+  'green-500': { text: 'text-green-500', border: 'border-green-500' },
+}
+
 export default function Sidebar() {
   const [activeTab, setActiveTab] = useState<Tab>('earthquakes')
   const { earthquakes, hurricanes, wildfires, severeWeather, setSelectedEvent, filters, setFilters } = useEventStore()
@@ -24,14 +33,17 @@ export default function Sidebar() {
   return (
     <aside className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col overflow-hidden">
       {/* Tabs */}
-      <div className="grid grid-cols-5 border-b border-gray-700">
+      <div className="grid grid-cols-5 border-b border-gray-700" role="tablist" aria-label="Event categories">
         {tabs.map(({ id, icon: Icon, label, color, count }) => (
           <button
             key={id}
+            role="tab"
+            aria-selected={activeTab === id}
+            tabIndex={activeTab === id ? 0 : -1}
             onClick={() => setActiveTab(id)}
             className={`py-2 px-1 flex flex-col items-center justify-center gap-1 transition-colors ${
               activeTab === id
-                ? `bg-gray-700 text-${color} border-b-2 border-${color}`
+                ? `bg-gray-700 ${colorClassMap[color].text} border-b-2 ${colorClassMap[color].border}`
                 : 'text-gray-400 hover:text-white hover:bg-gray-750'
             }`}
           >
@@ -77,13 +89,21 @@ export default function Sidebar() {
       </div>
       
       {/* Event list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" role="tabpanel" aria-label={`${activeTab} events`}>
         {activeTab === 'earthquakes' && (
           <ul className="divide-y divide-gray-700">
             {earthquakes.map((eq) => (
               <li
                 key={eq.usgs_id}
                 onClick={() => setSelectedEvent(eq)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setSelectedEvent(eq)
+                  }
+                }}
+                tabIndex={0}
+                role="button"
                 className="p-3 hover:bg-gray-700 cursor-pointer transition-colors"
               >
                 <div className="flex items-start gap-3">
@@ -116,6 +136,14 @@ export default function Sidebar() {
               <li
                 key={hurricane.storm_id}
                 onClick={() => setSelectedEvent(hurricane)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setSelectedEvent(hurricane)
+                  }
+                }}
+                tabIndex={0}
+                role="button"
                 className="p-3 hover:bg-gray-700 cursor-pointer transition-colors"
               >
                 <div className="flex items-start gap-3">
@@ -145,6 +173,14 @@ export default function Sidebar() {
               <li
                 key={fire.source_id}
                 onClick={() => setSelectedEvent(fire)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setSelectedEvent(fire)
+                  }
+                }}
+                tabIndex={0}
+                role="button"
                 className="p-3 hover:bg-gray-700 cursor-pointer transition-colors"
               >
                 <div className="flex items-start gap-3">
@@ -174,6 +210,14 @@ export default function Sidebar() {
               <li
                 key={event.source_id}
                 onClick={() => setSelectedEvent(event)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setSelectedEvent(event)
+                  }
+                }}
+                tabIndex={0}
+                role="button"
                 className="p-3 hover:bg-gray-700 cursor-pointer transition-colors"
               >
                 <div className="flex items-start gap-3">

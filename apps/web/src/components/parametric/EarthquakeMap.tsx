@@ -7,7 +7,6 @@ import MapGL, {
   Popup,
 } from 'react-map-gl/maplibre'
 import type { MapRef, MapLayerMouseEvent } from 'react-map-gl/maplibre'
-import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEarthquakeParametricStore } from '../../stores/earthquakeParametricStore'
 import { EarthquakeBoundingBox } from '../../types/parametric'
 import { Mountain, Target, AlertTriangle, TrendingUp } from 'lucide-react'

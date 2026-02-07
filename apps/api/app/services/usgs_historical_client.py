@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
+from app.utils.cache import TTLCache
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +26,7 @@ class USGSHistoricalClient:
         # Historical queries can take longer
         timeout = httpx.Timeout(60.0, connect=10.0)
         self.client = httpx.AsyncClient(timeout=timeout)
-        self._cache: Dict[str, List[Dict]] = {}
+        self._cache: TTLCache = TTLCache(max_size=50, ttl_seconds=3600)
     
     async def fetch_earthquakes(
         self,
@@ -47,14 +49,14 @@ class USGSHistoricalClient:
         cache_key = f"{start_year}_{end_year}_{min_magnitude}_{region}"
         
         # Check cache
-        if cache_key in self._cache:
-            earthquakes = self._cache[cache_key]
+        cached = self._cache.get(cache_key)
+        if cached is not None:
             # Apply bounding box filter if specified
             if min_latitude is not None:
-                earthquakes = [eq for eq in earthquakes 
-                               if min_latitude <= eq['latitude'] <= max_latitude 
-                               and min_longitude <= eq['longitude'] <= max_longitude]
-            return earthquakes
+                cached = [eq for eq in cached
+                          if min_latitude <= eq['latitude'] <= max_latitude
+                          and min_longitude <= eq['longitude'] <= max_longitude]
+            return cached
         
         all_earthquakes = []
         
@@ -104,7 +106,7 @@ class USGSHistoricalClient:
                 logger.error("Unexpected error fetching year %d: %s", year, e)
         
         # Cache the results
-        self._cache[cache_key] = all_earthquakes
+        self._cache.set(cache_key, all_earthquakes)
         
         return all_earthquakes
     

@@ -5,106 +5,38 @@ for TIV impact analysis.
 """
 from __future__ import annotations
 
+import logging
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from app.services.parametric_service import get_parametric_service
-from app.services.earthquake_parametric_service import get_earthquake_parametric_service
-from app.schemas.parametric import DatasetType
+from app.core.auth import get_api_key
+from app.core.rate_limit import limiter
+from app.core.response import success_response
 from app.schemas.earthquake_parametric import EarthquakeDatasetType
+from app.schemas.indemnity import HistoricalEarthquake, HistoricalHurricane
+from app.schemas.parametric import DatasetType
+from app.services.earthquake_parametric_service import get_earthquake_parametric_service
+from app.services.indemnity_service import (
+    calculate_earthquake_significance,
+    calculate_hurricane_significance,
+)
+from app.services.parametric_service import get_parametric_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/indemnity", tags=["indemnity"])
 
 
-# =============================================================================
-# SCHEMAS
-# =============================================================================
-
-class HistoricalEarthquake(BaseModel):
-    """Simplified earthquake for indemnity historical analysis."""
-    id: str
-    name: str
-    magnitude: float
-    lat: float
-    lon: float
-    date: str
-    depth_km: Optional[float] = None
-    deaths: Optional[int] = None
-    damage_usd: Optional[float] = None
-    significance_score: float
-
-
-class HistoricalHurricane(BaseModel):
-    """Hurricane with full track for indemnity historical analysis."""
-    id: str
-    name: str
-    season: int
-    max_category: int
-    max_wind_mph: float
-    min_pressure_mb: Optional[float] = None
-    damage_usd: Optional[float] = None
-    deaths: Optional[int] = None
-    significance_score: float
-    track: List[dict]
-
-
-# =============================================================================
-# SIGNIFICANT EVENT CALCULATION
-# =============================================================================
-
-def calculate_earthquake_significance(eq: dict) -> float:
-    """
-    Calculate significance score for an earthquake.
-    Based on magnitude (exponential scale) and damage if available.
-    """
-    magnitude = eq.get("magnitude", 0)
-    damage = eq.get("damage_usd", 0) or 0
-    
-    # Magnitude contributes exponentially (Richter scale is logarithmic)
-    mag_score = 10 ** (magnitude - 4)  # Normalize so M4 = 1, M5 = 10, M6 = 100, etc.
-    
-    # Damage contributes linearly (normalized to billions)
-    damage_score = damage / 1_000_000_000 if damage > 0 else 0
-    
-    # Combined score (magnitude is primary, damage is secondary)
-    return mag_score + (damage_score * 10)
-
-
-def calculate_hurricane_significance(hurricane: dict) -> float:
-    """
-    Calculate significance score for a hurricane.
-    Based on category, wind speed, and damage if available.
-    """
-    category = hurricane.get("max_category", 0)
-    wind = hurricane.get("max_wind_knots", 0) or hurricane.get("max_wind_mph", 0)
-    damage = hurricane.get("damage_usd", 0) or 0
-    
-    # Category contributes exponentially
-    cat_score = 2 ** category if category > 0 else 0.5
-    
-    # Wind speed normalized (100 knots = 1.0)
-    wind_score = wind / 100
-    
-    # Damage in billions
-    damage_score = damage / 1_000_000_000 if damage > 0 else 0
-    
-    # Combined score
-    return (cat_score * 10) + (wind_score * 5) + (damage_score * 2)
-
-
-# =============================================================================
-# ENDPOINTS
-# =============================================================================
-
 @router.get("/historical/earthquakes", response_model=List[HistoricalEarthquake])
+@limiter.limit("30/minute")
 async def get_historical_earthquakes(
+    request: Request,
     mode: Literal["all", "significant"] = Query("significant", description="Load all or top significant events"),
     limit: int = Query(30, ge=1, le=100, description="Number of events for significant mode"),
     start_year: int = Query(1980, ge=1900, le=2030),
     end_year: int = Query(2025, ge=1900, le=2030),
     min_magnitude: float = Query(6.0, ge=4.0, le=10.0, description="Minimum magnitude to include"),
+    api_key: str = Depends(get_api_key),
 ):
     """
     Get historical earthquakes for indemnity impact analysis.
@@ -162,20 +94,27 @@ async def get_historical_earthquakes(
         if mode == "significant":
             result = result[:limit]
         
-        return result
+        return success_response(result)
         
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch earthquakes: {str(e)}")
+    except Exception:
+        logger.exception("Failed to fetch historical earthquakes for indemnity")
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "INTERNAL_ERROR", "message": "Failed to fetch earthquakes", "details": None},
+        )
 
 
 @router.get("/historical/hurricanes", response_model=List[HistoricalHurricane])
+@limiter.limit("30/minute")
 async def get_historical_hurricanes(
+    request: Request,
     mode: Literal["all", "significant"] = Query("significant", description="Load all or top significant events"),
     limit: int = Query(30, ge=1, le=100, description="Number of events for significant mode"),
     start_year: int = Query(1980, ge=1850, le=2030),
     end_year: int = Query(2025, ge=1850, le=2030),
     min_category: int = Query(1, ge=0, le=5, description="Minimum category to include"),
     basin: Optional[str] = Query(None, description="Basin filter (NA, EP, WP, etc.)"),
+    api_key: str = Depends(get_api_key),
 ):
     """
     Get historical hurricanes with full track data for indemnity impact analysis.
@@ -234,18 +173,23 @@ async def get_historical_hurricanes(
         if mode == "significant":
             result = result[:limit]
         
-        return result
+        return success_response(result)
         
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch hurricanes: {str(e)}")
+    except Exception:
+        logger.exception("Failed to fetch historical hurricanes for indemnity")
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "INTERNAL_ERROR", "message": "Failed to fetch hurricanes", "details": None},
+        )
 
 
 @router.get("/historical/summary")
-async def get_historical_summary():
+@limiter.limit("30/minute")
+async def get_historical_summary(request: Request):
     """
     Get summary of available historical data for the UI.
     """
-    return {
+    return success_response({
         "earthquakes": {
             "datasets": ["USGS Worldwide"],
             "year_range": {"min": 1900, "max": 2025},
@@ -261,4 +205,4 @@ async def get_historical_summary():
             "default_mode": "significant",
             "default_limit": 30,
         }
-    }
+    })

@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import MapGL, { Marker, Popup, NavigationControl, ScaleControl, Source, Layer } from 'react-map-gl/maplibre'
 import type { MapRef, MapLayerMouseEvent } from 'react-map-gl/maplibre'
-import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEventStore } from '../stores/eventStore'
 import { useTriggerZoneStore, TriggerZone } from '../stores/triggerZoneStore'
 import { getMagnitudeColor, getCategoryColor, getWildfireColor, getTornadoColor, getFloodingColor, getHailColor } from '../utils/colors'
@@ -15,6 +14,20 @@ import MapStyleSelector, {
   generate3DTerrainStyle,
 } from './parametric/MapStyleSelector'
 import DrawingToolbar from './parametric/DrawingToolbar'
+
+interface UploadedGeoJSONFeature {
+  type?: string
+  geometry?: {
+    type: string
+    coordinates: number[][][]
+  }
+  properties?: {
+    name?: string
+    color?: string
+    trigger?: TriggerZone['trigger']
+    payout?: TriggerZone['payout']
+  }
+}
 
 type AnyEvent = Earthquake | Hurricane | Wildfire | SevereWeather
 
@@ -90,7 +103,7 @@ export default function Map() {
         const newZones: TriggerZone[] = []
         
         const features = geojson.features || [geojson]
-        features.forEach((feature: any, index: number) => {
+        features.forEach((feature: UploadedGeoJSONFeature, index: number) => {
           if (feature.geometry?.type === 'Polygon') {
             const coords = feature.geometry.coordinates[0]
             const lngs = coords.map((c: number[]) => c[0])

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.earthquake import Earthquake
@@ -19,6 +20,26 @@ class EarthquakeService:
     def __init__(self, db: AsyncSession):
         self.db = db
     
+    @staticmethod
+    def _apply_filters(
+        query,
+        *,
+        min_magnitude: Optional[float] = None,
+        max_magnitude: Optional[float] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ):
+        """Apply common earthquake filters to a query."""
+        if min_magnitude is not None:
+            query = query.where(Earthquake.magnitude >= min_magnitude)
+        if max_magnitude is not None:
+            query = query.where(Earthquake.magnitude <= max_magnitude)
+        if start_date:
+            query = query.where(Earthquake.event_time >= start_date)
+        if end_date:
+            query = query.where(Earthquake.event_time <= end_date)
+        return query
+
     async def get_earthquakes(
         self,
         min_magnitude: Optional[float] = None,
@@ -29,27 +50,18 @@ class EarthquakeService:
         per_page: int = 50,
     ) -> EarthquakeList:
         """Get paginated list of earthquakes with filters."""
-        
+        filter_kwargs = dict(
+            min_magnitude=min_magnitude,
+            max_magnitude=max_magnitude,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
         # Build query
-        query = select(Earthquake)
-        count_query = select(func.count(Earthquake.id))
-        
-        # Apply filters
-        if min_magnitude is not None:
-            query = query.where(Earthquake.magnitude >= min_magnitude)
-            count_query = count_query.where(Earthquake.magnitude >= min_magnitude)
-        
-        if max_magnitude is not None:
-            query = query.where(Earthquake.magnitude <= max_magnitude)
-            count_query = count_query.where(Earthquake.magnitude <= max_magnitude)
-        
-        if start_date:
-            query = query.where(Earthquake.event_time >= start_date)
-            count_query = count_query.where(Earthquake.event_time >= start_date)
-        
-        if end_date:
-            query = query.where(Earthquake.event_time <= end_date)
-            count_query = count_query.where(Earthquake.event_time <= end_date)
+        query = self._apply_filters(select(Earthquake), **filter_kwargs)
+        count_query = self._apply_filters(
+            select(func.count(Earthquake.id)), **filter_kwargs
+        )
         
         # Get total count
         total_result = await self.db.execute(count_query)
@@ -98,18 +110,19 @@ class EarthquakeService:
         return earthquake
     
     async def upsert(self, data: dict) -> Earthquake:
-        """Create or update an earthquake by USGS ID."""
-        existing = await self.get_by_usgs_id(data["usgs_id"])
-        
-        if existing:
-            # Update existing record
-            for key, value in data.items():
-                setattr(existing, key, value)
-            await self.db.flush()
-            return existing
-        else:
-            # Create new record
-            return await self.create(data)
+        """Create or update an earthquake by USGS ID using atomic upsert."""
+        stmt = pg_insert(Earthquake).values(**data)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["usgs_id"],
+            set_={k: v for k, v in data.items() if k != "usgs_id"},
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        # Fetch the upserted record
+        return await self.db.get(
+            Earthquake,
+            data.get("usgs_id") or result.inserted_primary_key[0],
+        )
     
     async def get_recent(
         self,

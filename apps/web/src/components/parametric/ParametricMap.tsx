@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import MapGL, { Source, Layer, NavigationControl, ScaleControl, Popup } from 'react-map-gl/maplibre'
 import type { MapRef, MapLayerMouseEvent } from 'react-map-gl/maplibre'
-import 'maplibre-gl/dist/maplibre-gl.css'
 import { useParametricStore } from '../../stores/parametricStore'
 import { BoundingBox } from '../../types/parametric'
 import { Waves, Target, AlertTriangle, TrendingUp, Wind } from 'lucide-react'

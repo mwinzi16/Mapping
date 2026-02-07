@@ -1,15 +1,15 @@
 import axios from 'axios'
 import { BoundingBox, HistoricalHurricane, BoxStatistics, AnalysisFilters, DatasetInfo, DatasetType } from '../types/parametric'
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api'
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
 export const parametricApi = {
   /**
    * Get available hurricane datasets.
    */
   async getAvailableDatasets(): Promise<DatasetInfo[]> {
-    const response = await axios.get<DatasetInfo[]>(`${API_BASE}/parametric/datasets`)
-    return response.data
+    const response = await axios.get(`${API_BASE}/parametric/datasets`)
+    return response.data.data
   },
   
   /**
@@ -25,10 +25,10 @@ export const parametricApi = {
       params.set('basin', filters.basin)
     }
     
-    const response = await axios.get<HistoricalHurricane[]>(
+    const response = await axios.get(
       `${API_BASE}/parametric/hurricanes/historical?${params}`
     )
-    return response.data
+    return response.data.data
   },
   
   /**
@@ -38,7 +38,7 @@ export const parametricApi = {
     box: BoundingBox,
     filters: AnalysisFilters
   ): Promise<HistoricalHurricane[]> {
-    const response = await axios.post<HistoricalHurricane[]>(
+    const response = await axios.post(
       `${API_BASE}/parametric/analysis/intersections`,
       {
         box,
@@ -49,7 +49,7 @@ export const parametricApi = {
         dataset: filters.dataset,
       }
     )
-    return response.data
+    return response.data.data
   },
   
   /**
@@ -59,7 +59,7 @@ export const parametricApi = {
     box: BoundingBox,
     filters: AnalysisFilters
   ): Promise<BoxStatistics> {
-    const response = await axios.post<BoxStatistics>(
+    const response = await axios.post(
       `${API_BASE}/parametric/analysis/statistics`,
       {
         box,
@@ -70,7 +70,7 @@ export const parametricApi = {
         dataset: filters.dataset,
       }
     )
-    return response.data
+    return response.data.data
   },
   
   /**
@@ -80,7 +80,7 @@ export const parametricApi = {
     boxes: BoundingBox[],
     filters: AnalysisFilters
   ): Promise<Record<string, BoxStatistics>> {
-    const response = await axios.post<Record<string, BoxStatistics>>(
+    const response = await axios.post(
       `${API_BASE}/parametric/analysis/bulk-statistics`,
       {
         boxes,
@@ -91,24 +91,24 @@ export const parametricApi = {
         dataset: filters.dataset,
       }
     )
-    return response.data
+    return response.data.data
   },
   
   /**
    * Get available basins for filtering.
    */
   async getBasins(dataset: DatasetType = 'ibtracs'): Promise<string[]> {
-    const response = await axios.get<string[]>(`${API_BASE}/parametric/basins?dataset=${dataset}`)
-    return response.data
+    const response = await axios.get(`${API_BASE}/parametric/basins?dataset=${dataset}`)
+    return response.data.data
   },
   
   /**
    * Get year range of available historical data.
    */
   async getYearRange(dataset: DatasetType = 'ibtracs'): Promise<{ min_year: number; max_year: number }> {
-    const response = await axios.get<{ min_year: number; max_year: number }>(
+    const response = await axios.get(
       `${API_BASE}/parametric/year-range?dataset=${dataset}`
     )
-    return response.data
+    return response.data.data
   },
 }

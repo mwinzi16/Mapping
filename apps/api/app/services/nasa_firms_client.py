@@ -153,6 +153,11 @@ class NASAFirmsClient:
             dt_str = f"{date_str} {time_str[:2]}:{time_str[2:]}"
             return datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
         except ValueError:
+            logger.warning(
+                "Failed to parse FIRMS datetime: date_str=%r, time_str=%r",
+                date_str,
+                time_str,
+            )
             return datetime.now(timezone.utc)
     
     async def _fetch_sample_fires(self) -> List[Dict[str, Any]]:

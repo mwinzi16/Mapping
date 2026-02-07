@@ -1,8 +1,11 @@
 """
 Subscription model for email alerts.
 """
+from __future__ import annotations
+
 from datetime import datetime, timezone
-from sqlalchemy import String, Float, DateTime, Integer, Boolean, JSON
+
+from sqlalchemy import Boolean, DateTime, Float, Integer, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -54,4 +57,4 @@ class Subscription(Base):
     )
     
     def __repr__(self) -> str:
-        return f"<Subscription {self.email}>"
+        return f"<Subscription(id={self.id}, verified={self.is_verified})>"

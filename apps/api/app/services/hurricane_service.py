@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.hurricane import Hurricane
@@ -18,6 +19,23 @@ class HurricaneService:
     def __init__(self, db: AsyncSession):
         self.db = db
     
+    @staticmethod
+    def _apply_filters(
+        query,
+        *,
+        basin: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        min_category: Optional[int] = None,
+    ):
+        """Apply common hurricane filters to a query."""
+        if basin:
+            query = query.where(Hurricane.basin == basin)
+        if is_active is not None:
+            query = query.where(Hurricane.is_active == is_active)
+        if min_category is not None:
+            query = query.where(Hurricane.category >= min_category)
+        return query
+
     async def get_hurricanes(
         self,
         basin: Optional[str] = None,
@@ -27,23 +45,17 @@ class HurricaneService:
         per_page: int = 50,
     ) -> HurricaneList:
         """Get paginated list of hurricanes with filters."""
-        
+        filter_kwargs = dict(
+            basin=basin,
+            is_active=is_active,
+            min_category=min_category,
+        )
+
         # Build query
-        query = select(Hurricane)
-        count_query = select(func.count(Hurricane.id))
-        
-        # Apply filters
-        if basin:
-            query = query.where(Hurricane.basin == basin)
-            count_query = count_query.where(Hurricane.basin == basin)
-        
-        if is_active is not None:
-            query = query.where(Hurricane.is_active == is_active)
-            count_query = count_query.where(Hurricane.is_active == is_active)
-        
-        if min_category is not None:
-            query = query.where(Hurricane.category >= min_category)
-            count_query = count_query.where(Hurricane.category >= min_category)
+        query = self._apply_filters(select(Hurricane), **filter_kwargs)
+        count_query = self._apply_filters(
+            select(func.count(Hurricane.id)), **filter_kwargs
+        )
         
         # Get total count
         total_result = await self.db.execute(count_query)
@@ -100,19 +112,21 @@ class HurricaneService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
     
-    async def get_track(self, hurricane_id: int) -> Optional[Dict[str, Any]]:
+    async def get_track(self, hurricane_id: int) -> dict:
         """Get hurricane track as GeoJSON."""
-        hurricane = await self.get_by_id(hurricane_id)
-        
-        if not hurricane or not hurricane.track:
-            return None
-        
-        # Convert PostGIS geometry to GeoJSON
-        # This is simplified - real implementation would use ST_AsGeoJSON
-        return {
-            "type": "LineString",
-            "coordinates": []  # Would be populated from track geometry
-        }
+        from geoalchemy2.functions import ST_AsGeoJSON
+
+        result = await self.db.execute(
+            select(
+                func.ST_AsGeoJSON(Hurricane.track).label("track_geojson")
+            ).where(Hurricane.id == hurricane_id)
+        )
+        row = result.scalar_one_or_none()
+        if row:
+            import json
+
+            return json.loads(row)
+        return {"type": "LineString", "coordinates": []}
     
     async def create(self, data: dict) -> Hurricane:
         """Create a new hurricane record."""
@@ -123,18 +137,19 @@ class HurricaneService:
         return hurricane
     
     async def upsert(self, data: dict) -> Hurricane:
-        """Create or update a hurricane by storm ID."""
-        existing = await self.get_by_storm_id(data["storm_id"])
-        
-        if existing:
-            # Update existing record
-            for key, value in data.items():
-                setattr(existing, key, value)
-            await self.db.flush()
-            return existing
-        else:
-            # Create new record
-            return await self.create(data)
+        """Create or update a hurricane by storm ID using atomic upsert."""
+        stmt = pg_insert(Hurricane).values(**data)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["storm_id"],
+            set_={k: v for k, v in data.items() if k != "storm_id"},
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        # Fetch the upserted record
+        return await self.db.get(
+            Hurricane,
+            data.get("storm_id") or result.inserted_primary_key[0],
+        )
     
     async def get_active(self) -> List[Hurricane]:
         """Get all currently active storms."""

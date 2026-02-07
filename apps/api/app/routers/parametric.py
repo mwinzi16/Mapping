@@ -3,21 +3,26 @@ API endpoints for parametric insurance analysis.
 """
 from __future__ import annotations
 
+import logging
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from app.core.auth import get_api_key
+from app.core.rate_limit import limiter
+from app.core.response import success_response
 from app.schemas.parametric import (
-    BoxStatistics,
     AnalysisRequest,
+    BoxStatistics,
     BulkAnalysisRequest,
-    YearRange,
-    DatasetType,
     DatasetInfo,
+    DatasetType,
+    YearRange,
 )
-from app.services.parametric_service import get_parametric_service
 from app.services.ibtracs_client import get_ibtracs_client
+from app.services.parametric_service import get_parametric_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/parametric", tags=["parametric"])
 
 
@@ -29,7 +34,7 @@ async def get_available_datasets():
     Returns dataset metadata including name, description, basins, and year range.
     """
     service = get_parametric_service()
-    return service.get_available_datasets()
+    return success_response(service.get_available_datasets())
 
 
 @router.get("/hurricanes/historical", response_model=List[dict])
@@ -55,19 +60,18 @@ async def get_historical_hurricanes(
             basin=basin,
             dataset=dataset,
         )
-        return hurricanes
-    except Exception as e:
-        error_msg = str(e)
-        if "503" in error_msg or "unavailable" in error_msg.lower():
-            raise HTTPException(
-                status_code=503,
-                detail=f"Data source temporarily unavailable: {error_msg}"
-            )
-        raise HTTPException(status_code=500, detail=str(e))
+        return success_response(hurricanes)
+    except Exception:
+        logger.exception("Failed to fetch historical hurricanes")
+        raise HTTPException(
+            status_code=502,
+            detail={"code": "EXTERNAL_SERVICE_ERROR", "message": "Data source temporarily unavailable", "details": None},
+        )
 
 
 @router.post("/analysis/intersections", response_model=List[dict])
-async def get_box_intersections(request: AnalysisRequest):
+@limiter.limit("30/minute")
+async def get_box_intersections(request: Request, analysis: AnalysisRequest, api_key: str = Depends(get_api_key)):
     """
     Get all hurricanes that intersect with a bounding box.
     
@@ -76,18 +80,18 @@ async def get_box_intersections(request: AnalysisRequest):
     """
     service = get_parametric_service()
     hurricanes = await service.get_historical_hurricanes(
-        start_year=request.start_year,
-        end_year=request.end_year,
-        min_category=request.min_category,
-        basin=request.basin,
-        dataset=request.dataset,
+        start_year=analysis.start_year,
+        end_year=analysis.end_year,
+        min_category=analysis.min_category,
+        basin=analysis.basin,
+        dataset=analysis.dataset,
     )
     
-    intersections = service.find_box_intersections(hurricanes, request.box)
+    intersections = service.find_box_intersections(hurricanes, analysis.box)
     
     # Filter by trigger criteria if defined
-    if request.box.trigger:
-        intersections = service.filter_by_trigger_criteria(intersections, request.box.trigger)
+    if analysis.box.trigger:
+        intersections = service.filter_by_trigger_criteria(intersections, analysis.box.trigger)
     
     # Return simplified hurricane data without full track
     result = []
@@ -107,11 +111,12 @@ async def get_box_intersections(request: AnalysisRequest):
             "category_at_crossing": intersection["category_at_crossing"],
         })
     
-    return result
+    return success_response(result)
 
 
 @router.post("/analysis/statistics", response_model=BoxStatistics)
-async def calculate_box_statistics(request: AnalysisRequest):
+@limiter.limit("30/minute")
+async def calculate_box_statistics(request: Request, analysis: AnalysisRequest, api_key: str = Depends(get_api_key)):
     """
     Calculate statistical analysis for a trigger box.
     
@@ -120,18 +125,19 @@ async def calculate_box_statistics(request: AnalysisRequest):
     """
     service = get_parametric_service()
     stats = await service.analyze_box(
-        box=request.box,
-        start_year=request.start_year,
-        end_year=request.end_year,
-        min_category=request.min_category,
-        basin=request.basin,
-        dataset=request.dataset,
+        box=analysis.box,
+        start_year=analysis.start_year,
+        end_year=analysis.end_year,
+        min_category=analysis.min_category,
+        basin=analysis.basin,
+        dataset=analysis.dataset,
     )
-    return stats
+    return success_response(stats)
 
 
 @router.post("/analysis/bulk-statistics", response_model=Dict[str, BoxStatistics])
-async def calculate_bulk_statistics(request: BulkAnalysisRequest):
+@limiter.limit("30/minute")
+async def calculate_bulk_statistics(request: Request, bulk: BulkAnalysisRequest, api_key: str = Depends(get_api_key)):
     """
     Calculate statistics for multiple boxes at once.
     
@@ -139,14 +145,14 @@ async def calculate_bulk_statistics(request: BulkAnalysisRequest):
     """
     service = get_parametric_service()
     stats = await service.analyze_multiple_boxes(
-        boxes=request.boxes,
-        start_year=request.start_year,
-        end_year=request.end_year,
-        min_category=request.min_category,
-        basin=request.basin,
-        dataset=request.dataset,
+        boxes=bulk.boxes,
+        start_year=bulk.start_year,
+        end_year=bulk.end_year,
+        min_category=bulk.min_category,
+        basin=bulk.basin,
+        dataset=bulk.dataset,
     )
-    return stats
+    return success_response(stats)
 
 
 @router.get("/basins", response_model=List[str])
@@ -162,12 +168,12 @@ async def get_available_basins(
     - HURDAT2 Pacific: pacific
     """
     if dataset == DatasetType.HURDAT2_ATLANTIC:
-        return ["atlantic"]
+        return success_response(["atlantic"])
     elif dataset == DatasetType.HURDAT2_PACIFIC:
-        return ["pacific"]
+        return success_response(["pacific"])
     
     client = get_ibtracs_client()
-    return client.get_available_basins()
+    return success_response(client.get_available_basins())
 
 
 @router.get("/year-range", response_model=YearRange)
@@ -179,10 +185,10 @@ async def get_year_range(
     Get the available year range for historical data.
     """
     if dataset == DatasetType.HURDAT2_ATLANTIC:
-        return YearRange(min_year=1851, max_year=2023)
+        return success_response(YearRange(min_year=1851, max_year=2023))
     elif dataset == DatasetType.HURDAT2_PACIFIC:
-        return YearRange(min_year=1949, max_year=2023)
+        return success_response(YearRange(min_year=1949, max_year=2023))
     
     client = get_ibtracs_client()
     min_year, max_year = await client.get_year_range(basin)
-    return YearRange(min_year=min_year, max_year=max_year)
+    return success_response(YearRange(min_year=min_year, max_year=max_year))

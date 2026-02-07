@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
 import { useIndemnityStore } from '../../stores/indemnityStore'
 import { AggregatedTIV, TIVRecord } from '../../types/indemnity'
 import { formatTIVShort } from '../../utils/tivExcelUtils'

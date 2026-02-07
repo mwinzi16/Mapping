@@ -8,14 +8,12 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List
 
+from app.core.clients import get_firms_client, get_noaa_client, get_nws_client, get_usgs_client
 from app.routers.notifications import manager as ws_manager
 from app.services.email_service import email_service
-from app.services.nasa_firms_client import NASAFirmsClient
-from app.services.noaa_client import NOAAClient
-from app.services.nws_client import NWSClient
-from app.services.usgs_client import USGSClient
+from app.utils.privacy import mask_email
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +29,16 @@ class RealtimeService:
     """Service for real-time event monitoring and notifications."""
     
     def __init__(self):
-        self.usgs = USGSClient()
-        self.noaa = NOAAClient()
-        self.firms = NASAFirmsClient()
-        self.nws = NWSClient()
+        self.usgs = get_usgs_client()
+        self.noaa = get_noaa_client()
+        self.firms = get_firms_client()
+        self.nws = get_nws_client()
         
-        # Track seen events to avoid duplicates
-        self.seen_earthquakes: Set[str] = set()
-        self.seen_hurricanes: Set[str] = set()
-        self.seen_wildfires: Set[str] = set()
-        self.seen_severe: Set[str] = set()
+        # Track seen events to avoid duplicates (ordered dicts used as ordered sets)
+        self._seen_earthquakes: dict[str, None] = {}
+        self._seen_hurricanes: dict[str, None] = {}
+        self._seen_wildfires: dict[str, None] = {}
+        self._seen_severe: dict[str, None] = {}
         
         # Running state
         self._running = False
@@ -56,7 +54,7 @@ class RealtimeService:
         logger.info("Real-time monitoring started")
     
     async def stop(self):
-        """Stop the monitoring loop."""
+        """Stop the monitoring loop and close HTTP clients."""
         self._running = False
         if self._task:
             self._task.cancel()
@@ -64,6 +62,7 @@ class RealtimeService:
                 await self._task
             except asyncio.CancelledError:
                 pass
+
         logger.info("Real-time monitoring stopped")
     
     async def _monitor_loop(self):
@@ -112,8 +111,8 @@ class RealtimeService:
             
             for feature in data.get("features", []):
                 eq_id = feature.get("id")
-                if eq_id and eq_id not in self.seen_earthquakes:
-                    self.seen_earthquakes.add(eq_id)
+                if eq_id and eq_id not in self._seen_earthquakes:
+                    self._seen_earthquakes[eq_id] = None
                     
                     props = feature.get("properties", {})
                     coords = feature.get("geometry", {}).get("coordinates", [0, 0, 0])
@@ -132,9 +131,11 @@ class RealtimeService:
                     }
                     new_events.append(event)
                     
-                    # Only keep last 1000 IDs
-                    if len(self.seen_earthquakes) > 1000:
-                        self.seen_earthquakes = set(list(self.seen_earthquakes)[-500:])
+                    # Only keep last 1000 IDs (oldest evicted first)
+                    if len(self._seen_earthquakes) > 1000:
+                        excess = len(self._seen_earthquakes) - 1000
+                        for _ in range(excess):
+                            self._seen_earthquakes.pop(next(iter(self._seen_earthquakes)))
         except Exception as e:
             logger.error("Error checking earthquakes: %s", e)
         
@@ -150,8 +151,8 @@ class RealtimeService:
             for storm in storms:
                 storm_id = storm.get("id") or storm.get("name")
                 # For hurricanes, we might want to notify on updates too
-                if storm_id and storm_id not in self.seen_hurricanes:
-                    self.seen_hurricanes.add(storm_id)
+                if storm_id and storm_id not in self._seen_hurricanes:
+                    self._seen_hurricanes[storm_id] = None
                     
                     event = {
                         "type": "hurricane",
@@ -172,8 +173,8 @@ class RealtimeService:
             
             for fire in fires[:50]:  # Limit to 50 most recent
                 fire_id = fire.get("source_id")
-                if fire_id and fire_id not in self.seen_wildfires:
-                    self.seen_wildfires.add(fire_id)
+                if fire_id and fire_id not in self._seen_wildfires:
+                    self._seen_wildfires[fire_id] = None
                     
                     event = {
                         "type": "wildfire",
@@ -181,8 +182,10 @@ class RealtimeService:
                     }
                     new_events.append(event)
                     
-                    if len(self.seen_wildfires) > 500:
-                        self.seen_wildfires = set(list(self.seen_wildfires)[-250:])
+                    if len(self._seen_wildfires) > 500:
+                        excess = len(self._seen_wildfires) - 500
+                        for _ in range(excess):
+                            self._seen_wildfires.pop(next(iter(self._seen_wildfires)))
         except Exception as e:
             logger.error("Error checking wildfires: %s", e)
         
@@ -199,8 +202,8 @@ class RealtimeService:
             
             for alert in alerts:
                 alert_id = alert.get("source_id")
-                if alert_id and alert_id not in self.seen_severe:
-                    self.seen_severe.add(alert_id)
+                if alert_id and alert_id not in self._seen_severe:
+                    self._seen_severe[alert_id] = None
                     
                     event = {
                         "type": alert.get("event_type", "severe"),
@@ -208,8 +211,10 @@ class RealtimeService:
                     }
                     new_events.append(event)
                     
-                    if len(self.seen_severe) > 500:
-                        self.seen_severe = set(list(self.seen_severe)[-250:])
+                    if len(self._seen_severe) > 500:
+                        excess = len(self._seen_severe) - 500
+                        for _ in range(excess):
+                            self._seen_severe.pop(next(iter(self._seen_severe)))
         except Exception as e:
             logger.error("Error checking severe weather: %s", e)
         
@@ -228,34 +233,58 @@ class RealtimeService:
             logger.info("Broadcast: %s event", event.get("type"))
     
     async def _send_email_alerts(self, events: List[Dict[str, Any]]):
-        """Send email alerts to matching subscribers."""
-        # Import here to avoid circular imports
-        from app.routers.subscriptions import get_active_subscriptions
-        
-        subscribers = get_active_subscriptions()
-        
-        for subscriber in subscribers:
-            matching_events = []
-            
-            for event in events:
-                if self._event_matches_subscription(event, subscriber):
-                    matching_events.append(event)
-            
-            if matching_events:
-                # Check rate limit
-                if subscriber.get("emails_sent_today", 0) >= subscriber.get("max_emails_per_day", 10):
-                    continue
-                
-                try:
-                    await email_service.send_alert_email(
-                        subscriber["email"],
-                        matching_events,
-                        subscriber.get("unsubscribe_token", "")
-                    )
-                    subscriber["emails_sent_today"] = subscriber.get("emails_sent_today", 0) + 1
-                    logger.info("Alert sent to %s", subscriber["email"])
-                except Exception as e:
-                    logger.error("Error sending alert to %s: %s", subscriber["email"], e)
+        """Send email alerts to matching subscribers (DB-backed)."""
+        from app.core.database import async_session_maker
+        from app.services.subscription_service import subscription_service
+
+        try:
+            async with async_session_maker() as db:
+                subscribers = await subscription_service.get_active_subscribers(db)
+
+                for sub in subscribers:
+                    matching_events = [
+                        ev
+                        for ev in events
+                        if self._event_matches_subscription(ev, self._sub_to_dict(sub))
+                    ]
+                    if not matching_events:
+                        continue
+
+                    # Rate-limit check
+                    if (sub.emails_sent_today or 0) >= (sub.max_emails_per_day or 10):
+                        continue
+
+                    try:
+                        await email_service.send_alert_email(
+                            sub.email,
+                            matching_events,
+                            sub.unsubscribe_token or "",
+                        )
+                        await subscription_service.increment_email_count(db, sub.id)
+                        logger.info("Alert sent to %s", mask_email(sub.email))
+                    except Exception as e:
+                        logger.error("Error sending alert to %s: %s", mask_email(sub.email), e)
+
+                await db.commit()
+        except Exception:
+            logger.exception("Error in _send_email_alerts")
+
+    @staticmethod
+    def _sub_to_dict(sub) -> Dict[str, Any]:
+        """Convert a Subscription ORM instance to a plain dict for matching."""
+        return {
+            "alert_earthquakes": sub.alert_earthquakes,
+            "alert_hurricanes": sub.alert_hurricanes,
+            "alert_wildfires": sub.alert_wildfires,
+            "alert_tornadoes": sub.alert_tornadoes,
+            "alert_flooding": sub.alert_flooding,
+            "alert_hail": sub.alert_hail,
+            "min_earthquake_magnitude": sub.min_earthquake_magnitude,
+            "min_hurricane_category": sub.min_hurricane_category,
+            "location_filter": sub.location_filter,
+            "max_emails_per_day": sub.max_emails_per_day,
+            "emails_sent_today": sub.emails_sent_today,
+        }
     
     def _event_matches_subscription(self, event: Dict, sub: Dict) -> bool:
         """Check if an event matches a subscriber's preferences."""

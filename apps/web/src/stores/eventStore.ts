@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { api } from '../services/api'
-import type { Earthquake, Hurricane, Wildfire, SevereWeather, Notification, Filters } from '../types'
+import type { Earthquake, Hurricane, Wildfire, SevereWeather, Notification, Filters, USGSEarthquakeFeature, WildfireFeature, SevereWeatherFeature } from '../types'
 
 interface EventStore {
   // State
@@ -13,6 +13,14 @@ interface EventStore {
   filters: Filters
   isLoading: boolean
   error: string | null
+  earthquakeError: string | null
+  hurricaneError: string | null
+  wildfireError: string | null
+  severeWeatherError: string | null
+  earthquakeLoading: boolean
+  hurricaneLoading: boolean
+  wildfireLoading: boolean
+  severeWeatherLoading: boolean
   
   // Actions
   fetchRecentEarthquakes: () => Promise<void>
@@ -44,16 +52,24 @@ export const useEventStore = create<EventStore>((set, get) => ({
   },
   isLoading: false,
   error: null,
+  earthquakeError: null,
+  hurricaneError: null,
+  wildfireError: null,
+  severeWeatherError: null,
+  earthquakeLoading: false,
+  hurricaneLoading: false,
+  wildfireLoading: false,
+  severeWeatherLoading: false,
   
   // Actions
   fetchRecentEarthquakes: async () => {
-    set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null, earthquakeLoading: true, earthquakeError: null })
     try {
       const { filters } = get()
       const data = await api.getRecentEarthquakes(filters.hoursAgo, filters.minMagnitude)
       
       // Parse GeoJSON features into our format
-      const earthquakes: Earthquake[] = data.features.map((f: any) => ({
+      const earthquakes: Earthquake[] = data.features.map((f: USGSEarthquakeFeature) => ({
         usgs_id: f.id,
         magnitude: f.properties.mag,
         magnitude_type: f.properties.magType,
@@ -67,27 +83,30 @@ export const useEventStore = create<EventStore>((set, get) => ({
         significance: f.properties.sig,
       }))
       
-      set({ earthquakes, isLoading: false })
+      set({ earthquakes, isLoading: false, earthquakeLoading: false })
     } catch (error) {
-      set({ error: 'Failed to fetch earthquakes', isLoading: false })
+      const message = error instanceof Error ? error.message : 'Failed to fetch earthquakes'
+      set({ error: message, earthquakeError: message, isLoading: false, earthquakeLoading: false })
     }
   },
   
   fetchActiveHurricanes: async () => {
+    set({ hurricaneLoading: true, hurricaneError: null })
     try {
       const data = await api.getActiveHurricanes()
-      set({ hurricanes: data.storms || [] })
+      set({ hurricanes: data.data || [], hurricaneLoading: false })
     } catch (error) {
-      // Hurricanes might not be active, don't show error
-      set({ hurricanes: [] })
+      const message = error instanceof Error ? error.message : 'Failed to fetch hurricanes'
+      set({ hurricanes: [], hurricaneError: message, hurricaneLoading: false })
     }
   },
   
   fetchActiveWildfires: async () => {
+    set({ wildfireLoading: true, wildfireError: null })
     try {
       const data = await api.getActiveWildfires()
       
-      const wildfires: Wildfire[] = (data.features || []).map((f: any) => ({
+      const wildfires: Wildfire[] = (data.features || []).map((f: WildfireFeature) => ({
         source_id: f.properties.source_id,
         latitude: f.geometry.coordinates[1],
         longitude: f.geometry.coordinates[0],
@@ -99,17 +118,19 @@ export const useEventStore = create<EventStore>((set, get) => ({
         is_active: true,
       }))
       
-      set({ wildfires })
+      set({ wildfires, wildfireLoading: false })
     } catch (error) {
-      set({ wildfires: [] })
+      const message = error instanceof Error ? error.message : 'Failed to fetch wildfires'
+      set({ wildfires: [], wildfireError: message, wildfireLoading: false })
     }
   },
   
   fetchSevereWeather: async () => {
+    set({ severeWeatherLoading: true, severeWeatherError: null })
     try {
       const data = await api.getSevereWeatherAlerts()
       
-      const severeWeather: SevereWeather[] = (data.features || []).map((f: any) => ({
+      const severeWeather: SevereWeather[] = (data.features || []).map((f: SevereWeatherFeature) => ({
         source_id: f.properties.source_id,
         event_type: f.properties.event_type,
         latitude: f.geometry.coordinates[1],
@@ -122,9 +143,10 @@ export const useEventStore = create<EventStore>((set, get) => ({
         expires_at: f.properties.expires_at,
       }))
       
-      set({ severeWeather })
+      set({ severeWeather, severeWeatherLoading: false })
     } catch (error) {
-      set({ severeWeather: [] })
+      const message = error instanceof Error ? error.message : 'Failed to fetch severe weather'
+      set({ severeWeather: [], severeWeatherError: message, severeWeatherLoading: false })
     }
   },
   
