@@ -1,0 +1,32 @@
+[project]
+name = "catastrophe-mapping"
+version = "1.0.0"
+description = "Enterprise-grade natural disaster monitoring and insurance analysis platform"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+select = ["E", "F", "I", "N", "W", "UP", "B", "A", "C4", "SIM"]
+
+[tool.ruff.isort]
+profile = "black"
+
+[tool.pytest.ini_options]
+testpaths = ["app/tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/tests/*", "app/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 92

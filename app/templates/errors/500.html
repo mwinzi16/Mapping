@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}500 Server Error — Catastrophe Analysis Platform{% endblock %}
+
+{% block content %}
+<div class="flex-1 flex items-center justify-center bg-gray-900">
+    <div class="text-center max-w-md mx-auto px-8">
+        <div class="mb-6">
+            <div class="bg-gray-800 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
+                <!-- AlertTriangle Icon -->
+                <svg class="w-12 h-12 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                    <path d="M12 9v4"></path>
+                    <path d="M12 17h.01"></path>
+                </svg>
+            </div>
+            <h1 class="text-6xl font-bold text-gray-600 mb-2">500</h1>
+            <h2 class="text-xl font-semibold text-white mb-2">Internal Server Error</h2>
+            <p class="text-gray-400 mb-8">
+                Something went wrong on our end. Our team has been notified and is working to fix the issue.
+            </p>
+        </div>
+        <div class="flex items-center justify-center gap-4">
+            <a href="/" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors font-medium">
+                Go Home
+            </a>
+            <button onclick="location.reload()" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors">
+                Retry
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Catastrophe Analysis Platform{% endblock %}
+
+{% block content %}
+<div class="flex-1 bg-gray-900 overflow-auto">
+    <!-- Hero Section -->
+    <div class="bg-gradient-to-br from-gray-800 via-gray-900 to-gray-800 py-16 px-8">
+        <div class="max-w-6xl mx-auto text-center">
+            <div class="flex items-center justify-center mb-6">
+                <div class="bg-blue-600 p-4 rounded-2xl">
+                    <!-- Globe Icon Large -->
+                    <svg class="w-12 h-12 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+                        <path d="M2 12h20"></path>
+                    </svg>
+                </div>
+            </div>
+            <h1 class="text-4xl font-bold text-white mb-4">
+                Catastrophe Analysis Platform
+            </h1>
+            <p class="text-xl text-gray-400 max-w-2xl mx-auto">
+                Enterprise-grade natural disaster monitoring, analysis, and insurance risk quantification
+            </p>
+        </div>
+    </div>
+
+    <!-- Main Menu Cards -->
+    <div class="max-w-6xl mx-auto px-8 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Parametric Analysis Card -->
+            <a href="/parametric/live"
+               class="group bg-gray-800 border border-gray-700 rounded-2xl p-8 hover:border-green-500 hover:bg-gray-800/80 transition-all duration-300 block">
+                <div class="flex items-start space-x-4">
+                    <div class="bg-green-600/20 p-4 rounded-xl group-hover:bg-green-600/30 transition-colors">
+                        <!-- BarChart3 Icon -->
+                        <svg class="w-8 h-8 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18"></path>
+                            <path d="M18 17V9"></path>
+                            <path d="M13 17V5"></path>
+                            <path d="M8 17v-3"></path>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <h2 class="text-2xl font-bold text-white mb-2 group-hover:text-green-400 transition-colors">
+                            Parametric Analysis
+                        </h2>
+                        <p class="text-gray-400 mb-4">
+                            Real-time monitoring and historical analysis of natural catastrophe events.
+                            Define trigger boxes, calculate Poisson probability, and perform bounding-box
+                            intersection analysis for parametric insurance products.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-xs">Live Cat</span>
+                            <span class="px-3 py-1 bg-gray-700 rounded-full text-xs text-gray-300">Historical TC</span>
+                            <span class="px-3 py-1 bg-gray-700 rounded-full text-xs text-gray-300">Historical EQ</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 flex items-center text-green-400 group-hover:translate-x-2 transition-transform">
+                    <span class="text-sm font-medium">Open Parametric Analysis</span>
+                    <!-- TrendingUp Icon -->
+                    <svg class="w-4 h-4 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+                        <polyline points="16 7 22 7 22 13"></polyline>
+                    </svg>
+                </div>
+            </a>
+
+            <!-- Indemnity Analysis Card -->
+            <a href="/indemnity/live"
+               class="group bg-gray-800 border border-gray-700 rounded-2xl p-8 hover:border-blue-500 hover:bg-gray-800/80 transition-all duration-300 block">
+                <div class="flex items-start space-x-4">
+                    <div class="bg-blue-600/20 p-4 rounded-xl group-hover:bg-blue-600/30 transition-colors">
+                        <!-- Shield Icon -->
+                        <svg class="w-8 h-8 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <h2 class="text-2xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                            Indemnity Analysis
+                        </h2>
+                        <p class="text-gray-400 mb-4">
+                            Total Insured Value impact assessment with live and historical catastrophe
+                            event overlay. Upload TIV data, analyze exposure mapping, and calculate
+                            concentration risk for traditional indemnity products.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-xs">Live Cat</span>
+                            <span class="px-3 py-1 bg-gray-700 rounded-full text-xs text-gray-300">Historical</span>
+                            <span class="px-3 py-1 bg-gray-700 rounded-full text-xs text-gray-300">TIV</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 flex items-center text-blue-400 group-hover:translate-x-2 transition-transform">
+                    <span class="text-sm font-medium">Open Indemnity Analysis</span>
+                    <!-- TrendingUp Icon -->
+                    <svg class="w-4 h-4 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+                        <polyline points="16 7 22 7 22 13"></polyline>
+                    </svg>
+                </div>
+            </a>
+        </div>
+
+        <!-- Quick Access Section -->
+        <div class="mt-12">
+            <h3 class="text-lg font-semibold text-gray-300 mb-6">Quick Access</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Parametric Live -->
+                <a href="/parametric/live"
+                   class="flex items-center space-x-3 bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-green-500 hover:bg-gray-800 transition-all">
+                    <!-- Activity Icon -->
+                    <svg class="w-5 h-5 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path>
+                    </svg>
+                    <div>
+                        <p class="text-white font-medium">Parametric Live</p>
+                        <p class="text-xs text-gray-500">Real-time triggers</p>
+                    </div>
+                </a>
+
+                <!-- Parametric History -->
+                <a href="/parametric/historical"
+                   class="flex items-center space-x-3 bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-blue-500 hover:bg-gray-800 transition-all">
+                    <!-- BarChart3 Icon -->
+                    <svg class="w-5 h-5 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 3v18h18"></path>
+                        <path d="M18 17V9"></path>
+                        <path d="M13 17V5"></path>
+                        <path d="M8 17v-3"></path>
+                    </svg>
+                    <div>
+                        <p class="text-white font-medium">Parametric History</p>
+                        <p class="text-xs text-gray-500">Analyze past events</p>
+                    </div>
+                </a>
+
+                <!-- Indemnity Live -->
+                <a href="/indemnity/live"
+                   class="flex items-center space-x-3 bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-green-500 hover:bg-gray-800 transition-all">
+                    <!-- MapPin Icon -->
+                    <svg class="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    <div>
+                        <p class="text-white font-medium">Indemnity Live</p>
+                        <p class="text-xs text-gray-500">TIV + live events</p>
+                    </div>
+                </a>
+
+                <!-- Indemnity History -->
+                <a href="/indemnity/historical"
+                   class="flex items-center space-x-3 bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-purple-500 hover:bg-gray-800 transition-all">
+                    <!-- Shield Icon -->
+                    <svg class="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path>
+                    </svg>
+                    <div>
+                        <p class="text-white font-medium">Indemnity History</p>
+                        <p class="text-xs text-gray-500">Historical exposure</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

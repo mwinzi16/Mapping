@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Real-Time Tracking — Catastrophe Analysis Platform{% endblock %}
+
+{% block subnav %}
+<!-- Parametric Sub-navigation -->
+<div class="bg-gray-800 border-b border-gray-700 px-6 py-2 flex-shrink-0">
+    <nav class="flex items-center space-x-1" aria-label="Parametric navigation">
+        <a href="/parametric/live"
+           class="flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors text-sm bg-green-600 text-white">
+            <!-- Activity Icon -->
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path>
+            </svg>
+            <span>Live Cat</span>
+        </a>
+        <a href="/parametric/historical"
+           class="flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors text-sm text-gray-300 hover:bg-gray-700 hover:text-white">
+            <!-- BarChart3 Icon -->
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"></path>
+                <path d="M18 17V9"></path>
+                <path d="M13 17V5"></path>
+                <path d="M8 17v-3"></path>
+            </svg>
+            <span>Historical</span>
+        </a>
+    </nav>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 flex overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col overflow-hidden" id="realtime-sidebar">
+        <!-- Tabs -->
+        <div class="grid grid-cols-5 border-b border-gray-700" role="tablist" aria-label="Event categories">
+            <button role="tab" aria-selected="true" data-tab="earthquakes"
+                    class="sidebar-tab py-2 px-1 flex flex-col items-center justify-center gap-1 transition-colors bg-gray-700 text-yellow-500 border-b-2 border-yellow-500"
+                    onclick="switchRealtimeTab('earthquakes')">
+                <!-- Mountain Icon -->
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m8 3 4 8 5-5 5 15H2L8 3z"></path>
+                </svg>
+                <span class="text-xs">Quakes</span>
+                <span class="text-xs opacity-60" id="tab-count-earthquakes">(0)</span>
+            </button>
+            <button role="tab" aria-selected="false" data-tab="hurricanes"
+                    class="sidebar-tab py-2 px-1 flex flex-col items-center justify-center gap-1 transition-colors text-gray-400 hover:text-white hover:bg-gray-750"
+                    onclick="switchRealtimeTab('hurricanes')">
+                <!-- Waves Icon -->
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path>
+                    <path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path>
+                    <path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path>
+                </svg>
+                <span class="text-xs">Storms</span>
+                <span class="text-xs opacity-60" id="tab-count-hurricanes">(0)</span>
+            </button>
+            <button role="tab" aria-selected="false" data-tab="wildfires"
+                    class="sidebar-tab py-2 px-1 flex flex-col items-center justify-center gap-1 transition-colors text-gray-400 hover:text-white hover:bg-gray-750"
+                    onclick="switchRealtimeTab('wildfires')">
+                <!-- Flame Icon -->
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path>
+                </svg>
+                <span class="text-xs">Fires</span>
+                <span class="text-xs opacity-60" id="tab-count-wildfires">(0)</span>
+            </button>
+            <button role="tab" aria-selected="false" data-tab="severe"
+                    class="sidebar-tab py-2 px-1 flex flex-col items-center justify-center gap-1 transition-colors text-gray-400 hover:text-white hover:bg-gray-750"
+                    onclick="switchRealtimeTab('severe')">
+                <!-- Wind Icon -->
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"></path>
+                    <path d="M9.6 4.6A2 2 0 1 1 11 8H2"></path>
+                    <path d="M12.6 19.4A2 2 0 1 0 14 16H2"></path>
+                </svg>
+                <span class="text-xs">Severe</span>
+                <span class="text-xs opacity-60" id="tab-count-severe">(0)</span>
+            </button>
+            <button role="tab" aria-selected="false" data-tab="triggers"
+                    class="sidebar-tab py-2 px-1 flex flex-col items-center justify-center gap-1 transition-colors text-gray-400 hover:text-white hover:bg-gray-750"
+                    onclick="switchRealtimeTab('triggers')">
+                <!-- Target Icon -->
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="6"></circle>
+                    <circle cx="12" cy="12" r="2"></circle>
+                </svg>
+                <span class="text-xs">Zones</span>
+                <span class="text-xs opacity-60" id="tab-count-triggers">(0)</span>
+            </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="p-3 border-b border-gray-700">
+            <div class="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                <!-- Filter Icon -->
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+                <span>Filters</span>
+            </div>
+            <div id="filter-earthquakes">
+                <select id="eq-magnitude-filter" class="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm border border-gray-600 focus:border-blue-500 focus:outline-none" onchange="filterEvents()">
+                    <option value="0">All magnitudes</option>
+                    <option value="2.5">M 2.5+</option>
+                    <option value="4.5">M 4.5+</option>
+                    <option value="6">M 6.0+</option>
+                </select>
+            </div>
+            <div id="filter-hurricanes" class="hidden">
+                <select id="hurricane-category-filter" class="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm border border-gray-600 focus:border-blue-500 focus:outline-none" onchange="filterEvents()">
+                    <option value="0">All storms</option>
+                    <option value="1">Cat 1+</option>
+                    <option value="3">Cat 3+ (Major)</option>
+                </select>
+            </div>
+            <div id="filter-wildfires" class="hidden">
+                <p class="text-xs text-gray-500">Showing all active fire detections</p>
+            </div>
+            <div id="filter-severe" class="hidden">
+                <p class="text-xs text-gray-500">Showing all active weather alerts</p>
+            </div>
+            <div id="filter-triggers" class="hidden">
+                <p class="text-xs text-gray-500">Manage trigger zones on the map</p>
+            </div>
+        </div>
+
+        <!-- Event List -->
+        <div class="flex-1 overflow-y-auto" role="tabpanel" aria-label="Event list" id="event-list-container">
+            <!-- Earthquakes Panel -->
+            <div id="panel-earthquakes" class="event-panel"
+                 hx-get="/api/v1/earthquakes/recent"
+                 hx-trigger="load"
+                 hx-target="#earthquake-list"
+                 hx-swap="innerHTML">
+                <ul id="earthquake-list" class="divide-y divide-gray-700">
+                    <li class="p-4 text-center text-gray-500 text-sm">
+                        <div class="flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+                            Loading earthquakes...
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Hurricanes Panel -->
+            <div id="panel-hurricanes" class="event-panel hidden"
+                 hx-get="/api/v1/hurricanes/active"
+                 hx-trigger="revealed"
+                 hx-target="#hurricane-list"
+                 hx-swap="innerHTML">
+                <ul id="hurricane-list" class="divide-y divide-gray-700">
+                    <li class="p-4 text-center text-gray-500 text-sm">Loading storms...</li>
+                </ul>
+            </div>
+
+            <!-- Wildfires Panel -->
+            <div id="panel-wildfires" class="event-panel hidden"
+                 hx-get="/api/v1/wildfires/"
+                 hx-trigger="revealed"
+                 hx-target="#wildfire-list"
+                 hx-swap="innerHTML">
+                <ul id="wildfire-list" class="divide-y divide-gray-700">
+                    <li class="p-4 text-center text-gray-500 text-sm">Loading fires...</li>
+                </ul>
+            </div>
+
+            <!-- Severe Weather Panel -->
+            <div id="panel-severe" class="event-panel hidden"
+                 hx-get="/api/v1/severe-weather/"
+                 hx-trigger="revealed"
+                 hx-target="#severe-list"
+                 hx-swap="innerHTML">
+                <ul id="severe-list" class="divide-y divide-gray-700">
+                    <li class="p-4 text-center text-gray-500 text-sm">Loading alerts...</li>
+                </ul>
+            </div>
+
+            <!-- Triggers Panel -->
+            <div id="panel-triggers" class="event-panel hidden">
+                <div class="p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-medium text-white">Trigger Zones</h3>
+                        <button onclick="startDrawingTriggerZone()" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg transition-colors">
+                            + Add Zone
+                        </button>
+                    </div>
+                    <ul id="trigger-zone-list" class="space-y-2">
+                        <li class="text-sm text-gray-500 text-center py-4">No trigger zones defined. Click "Add Zone" to draw one on the map.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Map Area -->
+    <main class="flex-1 relative">
+        <div id="realtime-map" class="w-full h-full"></div>
+
+        <!-- Notification Panel Overlay -->
+        <div id="notification-panel" class="absolute top-4 right-4 z-10 w-80 max-h-96 overflow-y-auto hidden">
+            <div class="bg-gray-800/95 backdrop-blur-sm rounded-lg border border-gray-700 shadow-xl">
+                <div class="flex items-center justify-between p-3 border-b border-gray-700">
+                    <div class="flex items-center gap-2">
+                        <!-- Bell Icon -->
+                        <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+                            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-white">Notifications</span>
+                    </div>
+                    <button onclick="toggleNotificationPanel()" class="text-gray-400 hover:text-white">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <ul id="notification-list" class="divide-y divide-gray-700">
+                    <li class="p-3 text-sm text-gray-500 text-center">No new notifications</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Map Controls Overlay -->
+        <div class="absolute top-4 left-4 z-10 flex items-center space-x-2">
+            <button onclick="toggleNotificationPanel()" class="bg-gray-800/90 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors" title="Notifications">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+                </svg>
+                <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center hidden">0</span>
+            </button>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script src="{{ url_for('static', filename='js/realtime.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initRealtimePage();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Indemnity Live Cat — Catastrophe Analysis Platform{% endblock %}
+
+{% block subnav %}
+<!-- Indemnity Sub-navigation -->
+<div class="bg-gray-800 border-b border-gray-700 px-6 py-2 flex-shrink-0">
+    <nav class="flex items-center space-x-1" aria-label="Indemnity navigation">
+        <a href="/indemnity/live"
+           class="flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors text-sm bg-green-600 text-white">
+            <!-- Activity Icon -->
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path>
+            </svg>
+            <span>Live Cat</span>
+        </a>
+        <a href="/indemnity/historical"
+           class="flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors text-sm text-gray-300 hover:bg-gray-700 hover:text-white">
+            <!-- BarChart3 Icon -->
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"></path>
+                <path d="M18 17V9"></path>
+                <path d="M13 17V5"></path>
+                <path d="M8 17v-3"></path>
+            </svg>
+            <span>Historical</span>
+        </a>
+    </nav>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 flex overflow-hidden bg-gray-900">
+    <!-- Left Panel -->
+    <aside class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col overflow-hidden">
+        <!-- Header -->
+        <div class="p-4 border-b border-gray-700">
+            <div class="flex items-center gap-2 mb-2">
+                <!-- Activity Icon -->
+                <svg class="w-5 h-5 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path>
+                </svg>
+                <h2 class="text-lg font-bold text-white">Live Cat Monitoring</h2>
+            </div>
+            <p class="text-xs text-gray-400">TIV locations with real-time catastrophe event overlay</p>
+        </div>
+
+        <!-- Scrollable content -->
+        <div class="flex-1 overflow-y-auto">
+            <!-- Live Event Stats -->
+            <div class="border-b border-gray-700">
+                <button onclick="toggleSection('live-stats-content')" class="w-full flex items-center justify-between p-4 hover:bg-gray-700/50 transition-colors">
+                    <div class="flex items-center gap-2">
+                        <!-- AlertTriangle Icon -->
+                        <svg class="w-4 h-4 text-yellow-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                            <path d="M12 9v4"></path>
+                            <path d="M12 17h.01"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-white">Live Event Stats</span>
+                    </div>
+                    <svg class="w-4 h-4 text-gray-400 section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m6 9 6 6 6-6"></path>
+                    </svg>
+                </button>
+                <div id="live-stats-content" class="px-4 pb-4">
+                    <div class="grid grid-cols-2 gap-2" id="live-event-counts"
+                         hx-get="/api/v1/earthquakes/recent"
+                         hx-trigger="load"
+                         hx-swap="none">
+                        <div class="bg-gray-700/50 rounded-lg p-3 text-center">
+                            <div class="text-yellow-400 text-xl font-bold" id="live-eq-count">-</div>
+                            <div class="text-xs text-gray-400">Earthquakes</div>
+                        </div>
+                        <div class="bg-gray-700/50 rounded-lg p-3 text-center">
+                            <div class="text-blue-400 text-xl font-bold" id="live-tc-count">-</div>
+                            <div class="text-xs text-gray-400">Hurricanes</div>
+                        </div>
+                        <div class="bg-gray-700/50 rounded-lg p-3 text-center">
+                            <div class="text-orange-400 text-xl font-bold" id="live-fire-count">-</div>
+                            <div class="text-xs text-gray-400">Wildfires</div>
+                        </div>
+                        <div class="bg-gray-700/50 rounded-lg p-3 text-center">
+                            <div class="text-purple-400 text-xl font-bold" id="live-sw-count">-</div>
+                            <div class="text-xs text-gray-400">Severe Weather</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layer Toggles -->
+            <div class="border-b border-gray-700">
+                <button onclick="toggleSection('layer-toggles-content')" class="w-full flex items-center justify-between p-4 hover:bg-gray-700/50 transition-colors">
+                    <div class="flex items-center gap-2">
+                        <!-- Eye Icon -->
+                        <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <span class="text-sm font-medium text-white">Layers</span>
+                    </div>
+                    <svg class="w-4 h-4 text-gray-400 section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m6 9 6 6 6-6"></path>
+                    </svg>
+                </button>
+                <div id="layer-toggles-content" class="px-4 pb-4 space-y-2">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" id="toggle-tiv-layer" checked class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-500" onchange="toggleIndemnityLayer('tiv')">
+                        <span class="text-sm text-white">TIV Locations</span>
+                        <span class="ml-auto px-2 py-0.5 bg-purple-600/20 text-purple-400 text-xs rounded">TIV</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" id="toggle-events-layer" checked class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-green-500 focus:ring-green-500" onchange="toggleIndemnityLayer('events')">
+                        <span class="text-sm text-white">Live Events</span>
+                        <span class="ml-auto px-2 py-0.5 bg-green-600/20 text-green-400 text-xs rounded">Live</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- TIV Data Upload -->
+            <div class="border-b border-gray-700">
+                <button onclick="toggleSection('tiv-upload-content')" class="w-full flex items-center justify-between p-4 hover:bg-gray-700/50 transition-colors">
+                    <div class="flex items-center gap-2">
+                        <!-- Upload Icon -->
+                        <svg class="w-4 h-4 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span class="text-sm font-medium text-white">TIV Data</span>
+                    </div>
+                    <svg class="w-4 h-4 text-gray-400 section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m6 9 6 6 6-6"></path>
+                    </svg>
+                </button>
+                <div id="tiv-upload-content" class="px-4 pb-4 space-y-3">
+                    <div id="tiv-dropzone" class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-green-500 transition-colors"
+                         ondragover="event.preventDefault(); this.classList.add('border-green-500', 'bg-green-900/10')"
+                         ondragleave="this.classList.remove('border-green-500', 'bg-green-900/10')"
+                         ondrop="handleTIVDrop(event)"
+                         onclick="document.getElementById('tiv-file-input').click()">
+                        <svg class="w-8 h-8 text-gray-500 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p class="text-sm text-gray-400">Drop CSV file here or click to browse</p>
+                        <p class="text-xs text-gray-500 mt-1">Expected columns: name, lat, lon, tiv</p>
+                    </div>
+                    <input type="file" id="tiv-file-input" accept=".csv,.xlsx" class="hidden" onchange="handleTIVFileSelect(event)">
+                    <div id="tiv-data-summary" class="hidden">
+                        <div class="flex items-center justify-between bg-gray-700/50 rounded-lg p-3">
+                            <div>
+                                <p class="text-sm font-medium text-white" id="tiv-file-name">data.csv</p>
+                                <p class="text-xs text-gray-400"><span id="tiv-record-count">0</span> locations loaded</p>
+                            </div>
+                            <button onclick="clearTIVData()" class="text-red-400 hover:text-red-300 p-1">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="border-b border-gray-700">
+                <button onclick="toggleSection('indemnity-filter-content')" class="w-full flex items-center justify-between p-4 hover:bg-gray-700/50 transition-colors">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                        </svg>
+                        <span class="text-sm font-medium text-white">Filters</span>
+                    </div>
+                    <svg class="w-4 h-4 text-gray-400 section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m6 9 6 6 6-6"></path>
+                    </svg>
+                </button>
+                <div id="indemnity-filter-content" class="px-4 pb-4 space-y-3 hidden">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Min TIV</label>
+                        <input type="number" id="min-tiv-filter" placeholder="0" class="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm border border-gray-600 focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Search Location</label>
+                        <input type="text" id="tiv-search-filter" placeholder="Search..." class="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm border border-gray-600 focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <button onclick="applyIndemnityFilters()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
+                        Apply Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistics Section -->
+            <div class="border-b border-gray-700">
+                <button onclick="toggleSection('indemnity-stats-content')" class="w-full flex items-center justify-between p-4 hover:bg-gray-700/50 transition-colors">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18"></path>
+                            <path d="M18 17V9"></path>
+                            <path d="M13 17V5"></path>
+                            <path d="M8 17v-3"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-white">Statistics</span>
+                    </div>
+                    <svg class="w-4 h-4 text-gray-400 section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m6 9 6 6 6-6"></path>
+                    </svg>
+                </button>
+                <div id="indemnity-stats-content" class="px-4 pb-4 hidden">
+                    <div id="indemnity-statistics" class="space-y-2">
+                        <p class="text-xs text-gray-500 text-center py-4">Upload TIV data to see statistics</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Map Area -->
+    <main class="flex-1 relative">
+        <!-- Map Container -->
+        <div id="indemnity-live-map" class="w-full h-full"></div>
+
+        <!-- Legend Overlay -->
+        <div id="indemnity-legend" class="absolute bottom-8 left-4 z-10 bg-gray-800/95 backdrop-blur-sm rounded-lg border border-gray-700 p-3 hidden">
+            <h4 class="text-xs font-medium text-white mb-2">Legend</h4>
+            <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-purple-500"></span>
+                    <span class="text-xs text-gray-300">TIV Locations</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                    <span class="text-xs text-gray-300">Earthquakes</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                    <span class="text-xs text-gray-300">Hurricanes</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+                    <span class="text-xs text-gray-300">Wildfires</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                    <span class="text-xs text-gray-300">Severe Weather</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="indemnity-live-loading" class="absolute inset-0 z-10 bg-gray-900/50 flex items-center justify-center hidden">
+            <div class="flex items-center space-x-3 bg-gray-800 px-6 py-4 rounded-lg">
+                <svg class="w-6 h-6 text-green-400 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+                <span class="text-white">Loading live data...</span>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script src="{{ url_for('static', filename='js/indemnity.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initIndemnityLivePage();
+});
+</script>
+{% endblock %}
